@@ -2,6 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="hosting-provider" content="Netlify">
+<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=e12639b9-93c1-40bc-9290-f3821db26188">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FactIQ · Búsquedas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -442,6 +447,7 @@ const CAMPOS = [
 ];
 
 function marcarFaltantes(){
+  if (!document.querySelector("#cardCampos")) return [];
   const faltan = [];
   CAMPOS.forEach(([sel,nom])=>{
     const el = $(sel), vacio = !el.value;
@@ -465,7 +471,10 @@ function pintarChips(){
 
 /* ============ buscar candidatos ============ */
 async function buscar(){
-  if (!SKILLS.length){ $("#jdErr").textContent = "Cargá al menos un skill para buscar."; return; }
+  if (!SKILLS.length){
+    $("#resultados").innerHTML = `<div class="vacio">Cargá al menos un skill para poder buscar.</div>`;
+    return;
+  }
   $("#resultados").innerHTML = `<div class="cargando">Buscando en la red...</div>`;
   const { data, error } = await sb.rpc("buscar_candidatos", {
     p_skills: SKILLS,
@@ -691,12 +700,14 @@ function enlazarRate(selHora, selMes){
     editando = "hora";
     mes.value = hora.value ? Math.round(Number(hora.value)*HS_MES) : "";
     editando = null;
+    marcarFaltantes();
   });
   mes.addEventListener("input", ()=>{
     if (editando === "hora") return;
     editando = "mes";
     hora.value = mes.value ? (Number(mes.value)/HS_MES).toFixed(2) : "";
     editando = null;
+    marcarFaltantes();
   });
 }
 enlazarRate("#f_budget", "#f_budget_mes");
@@ -763,3 +774,4 @@ sb.auth.getSession().then(({data})=>{ if (data.session) arrancar(data.session.us
 </script>
 </body>
 </html>
+<script async src="/.netlify/scripts/hud?variant=public" data-nf-variant="public" data-netlify-site-id="e12639b9-93c1-40bc-9290-f3821db26188" data-app-host="app.netlify.com"></script>
