@@ -351,7 +351,8 @@ tbody tr:hover{background:var(--surface-2)}
     <div class="modalfoot">
       <button class="btn ghost" id="modalCerrar">Cerrar</button>
       <button class="btn ghost" id="modalCopiar">Copiar</button>
-      <button class="btn" id="modalMailto">Abrir en el correo</button>
+      <button class="btn ghost" id="modalMailLocal">Correo del equipo</button>
+      <button class="btn" id="modalMailto">Abrir en Outlook</button>
     </div>
   </div>
 </div>
@@ -765,6 +766,14 @@ $("#modalCopiar").onclick = async ()=>{
   setTimeout(()=> $("#modalCopiar").textContent = "Copiar", 1400);
 };
 $("#modalMailto").onclick = ()=>{
+  // Redactor de Outlook en el navegador, con la cuenta de trabajo ya iniciada
+  const url = "https://outlook.office.com/mail/deeplink/compose"
+    + `?to=${encodeURIComponent(MODAL_DEST)}`
+    + `&subject=${encodeURIComponent($("#modalAsunto").value)}`
+    + `&body=${encodeURIComponent($("#modalCuerpo").value)}`;
+  window.open(url, "_blank", "noopener");
+};
+$("#modalMailLocal").onclick = ()=>{
   const url = `mailto:${encodeURIComponent(MODAL_DEST)}?subject=${encodeURIComponent($("#modalAsunto").value)}&body=${encodeURIComponent($("#modalCuerpo").value)}`;
   window.open(url, "_blank");
 };
