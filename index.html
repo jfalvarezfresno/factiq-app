@@ -362,6 +362,7 @@ tbody tr:hover{background:var(--surface-2)}
 const SUPA_URL = "https://adxuqnccpjmsbkjaxrbb.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeHVxbmNjcGptc2JramF4cmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNDMzODYsImV4cCI6MjEwNDgxOTM4Nn0.WS0JeKwhLTuXoy7BFP7T2CZA1nHpXkjXPCytakQpVNc";
 const MAIL_4LATAM = "rocio@4latam.com, marcelo@4latam.com";
+const MAIL_CC = "info@fact-iq.com,a.stiletano@fact-iq.com";
 const HS_MES = 160;
 const MARGEN_FIJO = 1000;      // USD por mes
 const MARGEN_PCT  = 0.455;     // promedio historico de FactIQ
@@ -769,12 +770,16 @@ $("#modalMailto").onclick = ()=>{
   // Redactor de Outlook en el navegador, con la cuenta de trabajo ya iniciada
   const url = "https://outlook.office.com/mail/deeplink/compose"
     + `?to=${encodeURIComponent(MODAL_DEST)}`
+    + `&cc=${encodeURIComponent(MAIL_CC)}`
     + `&subject=${encodeURIComponent($("#modalAsunto").value)}`
     + `&body=${encodeURIComponent($("#modalCuerpo").value)}`;
   window.open(url, "_blank", "noopener");
 };
 $("#modalMailLocal").onclick = ()=>{
-  const url = `mailto:${encodeURIComponent(MODAL_DEST)}?subject=${encodeURIComponent($("#modalAsunto").value)}&body=${encodeURIComponent($("#modalCuerpo").value)}`;
+  const url = `mailto:${encodeURIComponent(MODAL_DEST)}`
+    + `?cc=${encodeURIComponent(MAIL_CC)}`
+    + `&subject=${encodeURIComponent($("#modalAsunto").value)}`
+    + `&body=${encodeURIComponent($("#modalCuerpo").value)}`;
   window.open(url, "_blank");
 };
 
