@@ -316,6 +316,17 @@ tbody tr:hover{background:var(--surface-2)}
           <div class="field"><label>Seniority</label>
             <select id="r_sen"><option value="">Todos</option><option>JR</option><option>SSR</option>
             <option>SSR_ADV</option><option>SR</option><option>EXPERT</option></select></div>
+          <div class="field"><label>Idioma</label>
+            <select id="r_idioma"><option value="">Cualquiera</option>
+              <option value="ENG">Inglés</option><option value="ESP">Español</option>
+              <option value="POR">Portugués</option><option value="FRA">Francés</option>
+              <option value="GER">Alemán</option></select></div>
+          <div class="field"><label>Nivel mínimo</label>
+            <select id="r_nivel"><option value="">Cualquiera</option>
+              <option value="INTERMEDIATE">Intermedio</option>
+              <option value="ADVANCED">Avanzado</option>
+              <option value="PROFESSIONAL">Profesional</option>
+              <option value="NATIVE">Nativo</option></select></div>
           <div class="field"><label>Rate máx USD/h</label><input id="r_rate" type="number" step="0.5"></div>
           <div class="field"><label>Rate máx USD/mes</label><input id="r_rate_mes" type="number" step="10"></div>
           <div class="field" style="display:flex;align-items:center;gap:6px;min-width:auto">
@@ -328,7 +339,7 @@ tbody tr:hover{background:var(--surface-2)}
           <table>
             <thead><tr>
               <th>Nombre</th><th>País</th><th>Sen.</th><th>Años</th>
-              <th>USD/h</th><th>USD/mes</th><th>Contacto</th><th>Tecnologías</th>
+              <th>USD/h</th><th>USD/mes</th><th>Idiomas</th><th>Contacto</th><th>Tecnologías</th>
             </tr></thead>
             <tbody id="tbodyRed"></tbody>
           </table>
@@ -571,7 +582,7 @@ function pintarDetalle(i){
         <dt>Correo</dt><dd>${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:"—"}</dd>
         <dt>Teléfono</dt><dd>${esc(c.telefono||"—")}</dd>
         <dt>País</dt><dd>${esc(c.pais||"—")}</dd>
-        <dt>Idiomas</dt><dd>${esc(c.idiomas||"—")}</dd>
+        <dt>Idiomas</dt><dd>${esc(idiomasLegibles(c.idiomas))}</dd>
         <dt>Ajuste</dt><dd class="tabular">${Math.round(c.score)} · cubre ${c.skills_cubiertos} de ${c.skills_pedidos}</dd>
       </dl>
       ${c.resumen?`<div style="font-size:13px;color:var(--ink-2)">${esc(c.resumen)}</div>`:""}
@@ -648,7 +659,7 @@ Preguntas sugeridas: ${(ULTIMO?.preguntas_screening||[]).join(" | ")}`;
 /* ============ red ============ */
 async function cargarRed(){
   const tb = $("#tbodyRed");
-  tb.innerHTML = `<tr><td colspan="8" class="cargando">Cargando...</td></tr>`;
+  tb.innerHTML = `<tr><td colspan="9" class="cargando">Cargando...</td></tr>`;
   const vista = ROL === "ADMIN" ? "v_analistas" : "v_analistas_recruiter";
   let q = sb.from(vista).select("*").limit(600);
   const pais = $("#r_pais").value.trim();
@@ -659,13 +670,15 @@ async function cargarRed(){
   if (sen)  q = q.eq("seniority", sen);
   if (rate) q = q.lte(ROL==="ADMIN"?"usd_hora":"usd_hora_candidato", Number(rate));
   const { data, error } = await q;
-  if (error){ tb.innerHTML = `<tr><td colspan="8" class="vacio">${esc(error.message)}</td></tr>`; return; }
+  if (error){ tb.innerHTML = `<tr><td colspan="9" class="vacio">${esc(error.message)}</td></tr>`; return; }
   let filas = data || [];
   if (txt){
     const t = txt.toLowerCase();
     filas = filas.filter(f => JSON.stringify(f).toLowerCase().includes(t));
   }
   if ($("#r_cont").checked) filas = filas.filter(f => f.email || f.telefono);
+  const li = $("#r_idioma").value, ln = $("#r_nivel").value;
+  if (li) filas = filas.filter(f => cumpleIdioma(f.idiomas, li, ln));
   $("#contRed").textContent = `· ${filas.length}`;
   const rateCampo = ROL==="ADMIN" ? "usd_hora" : "usd_hora_candidato";
   tb.innerHTML = filas.map(f=>{
@@ -680,10 +693,36 @@ async function cargarRed(){
       <td class="tabular">${f.anios??"—"}</td>
       <td class="tabular">${r??"—"}</td>
       <td class="tabular">${r?Math.round(r*HS_MES).toLocaleString("es-AR"):"—"}</td>
+      <td style="font-size:12px">${esc(idiomasLegibles(f.idiomas))}</td>
       <td>${contacto}</td>
       <td style="max-width:360px;font-size:12px;color:var(--ink-2)">${esc((f.tecnologias||"").slice(0,150))}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="8" class="vacio">Ningún analista con esos filtros.</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="vacio">Ningún analista con esos filtros.</td></tr>`;
+}
+
+/* ============ idiomas ============ */
+const LANG_NOM = {ENG:"Inglés", ESP:"Español", POR:"Portugués", FRA:"Francés", GER:"Alemán"};
+const NIV_NOM  = {BASIC:"básico", INTERMEDIATE:"intermedio", ADVANCED:"avanzado",
+                  PROFESSIONAL:"profesional", NATIVE:"nativo"};
+const NIV_ORDEN = ["BASIC","INTERMEDIATE","ADVANCED","PROFESSIONAL","NATIVE"];
+
+// "ENG:ADVANCED ESP:NATIVE" -> "Inglés avanzado · Español nativo"
+function idiomasLegibles(s){
+  if (!s) return "—";
+  return s.trim().split(/\s+/).map(par=>{
+    const [l,n] = par.split(":");
+    return `${LANG_NOM[l]||l} ${NIV_NOM[n]||(n||"").toLowerCase()}`.trim();
+  }).join(" · ");
+}
+
+// cumple el idioma pedido con al menos ese nivel?
+function cumpleIdioma(s, lang, nivelMin){
+  if (!lang) return true;
+  if (!s) return false;
+  const par = s.trim().split(/\s+/).find(p => p.startsWith(lang+":"));
+  if (!par) return false;
+  if (!nivelMin) return true;
+  return NIV_ORDEN.indexOf(par.split(":")[1]) >= NIV_ORDEN.indexOf(nivelMin);
 }
 
 /* ============ util ============ */
