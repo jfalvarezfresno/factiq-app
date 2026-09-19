@@ -367,6 +367,15 @@ tbody tr:hover{background:var(--surface-2)}
   </main>
 </div>
 
+<!-- ============ VISOR DE CV ============ -->
+<div class="modal hide" id="visor">
+  <div class="card" style="max-width:860px">
+    <h2 id="visorTit"></h2>
+    <div id="visorCuerpo"></div>
+    <div class="modalfoot"><button class="btn ghost" id="visorCerrar">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- ============ MODAL ============ -->
 <div class="modal hide" id="modal">
   <div class="card">
@@ -747,7 +756,9 @@ async function cargarPostulaciones(){
         </div>
         ${resp}
         <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
-          ${p.cv_path?`<button class="btn ghost sm" data-cv="${esc(p.cv_path)}">Ver CV</button>`:""}
+          ${p.cv_path
+            ? `<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
+            : `<span class="sincontacto" style="align-self:center">sin CV adjunto</span>`}
           <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Marcar revisada</button>
           <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
         </div>
@@ -757,15 +768,37 @@ async function cargarPostulaciones(){
   contarNuevas();
 }
 
-$("#listaPost").addEventListener("click", async e=>{
-  const bCv = e.target.closest("button[data-cv]");
-  if (bCv){
-    const { data, error } = await sb.storage.from("cvs")
-      .createSignedUrl(bCv.dataset.cv, 300);
-    if (error) { alert("No se pudo abrir el CV: " + error.message); return; }
-    window.open(data.signedUrl, "_blank", "noopener");
+async function verCV(ruta, nombre){
+  const cont = $("#visorCuerpo");
+  $("#visorTit").textContent = "CV de " + nombre;
+  $("#visor").classList.remove("hide");
+  cont.innerHTML = `<div class="cargando">Abriendo el CV...</div>`;
+  const { data, error } = await sb.storage.from("cvs").createSignedUrl(ruta, 600);
+  if (error){
+    cont.innerHTML = `<div class="vacio">No se pudo abrir: ${esc(error.message)}</div>`;
     return;
   }
+  const url = data.signedUrl;
+  const ext = (ruta.split(".").pop()||"").toLowerCase();
+  if (ext === "pdf"){
+    cont.innerHTML =
+      `<iframe src="${url}#view=FitH" style="width:100%;height:68vh;border:1px solid var(--rule);
+        border-radius:6px;background:#fff"></iframe>
+       <div style="margin-top:10px;display:flex;gap:8px">
+         <a class="btn ghost sm" href="${url}" target="_blank" rel="noopener">Abrir en pestaña</a>
+         <a class="btn ghost sm" href="${url}" download>Descargar</a>
+       </div>`;
+  } else {
+    cont.innerHTML =
+      `<div class="aviso">Es un archivo de Word, que el navegador no puede mostrar acá.
+         Descargalo para verlo.</div>
+       <a class="btn" href="${url}" download style="display:inline-flex">Descargar el CV</a>`;
+  }
+}
+
+$("#listaPost").addEventListener("click", async e=>{
+  const bCv = e.target.closest("button[data-cv]");
+  if (bCv){ verCV(bCv.dataset.cv, bCv.dataset.nom || ""); return; }
   const bEst = e.target.closest("button[data-est]");
   if (bEst){
     const { error } = await sb.from("postulaciones")
@@ -920,6 +953,8 @@ $("#resultados").addEventListener("click", e=>{
 $("#btnRecargarRed").onclick = cargarRed;
 $("#r_q").addEventListener("keydown", e=>{ if(e.key==="Enter") cargarRed(); });
 
+$("#visorCerrar").onclick = ()=> $("#visor").classList.add("hide");
+$("#visor").addEventListener("click", e=>{ if(e.target.id==="visor") $("#visor").classList.add("hide"); });
 $("#modalCerrar").onclick = ()=> $("#modal").classList.add("hide");
 $("#modal").addEventListener("click", e=>{ if(e.target.id==="modal") $("#modal").classList.add("hide"); });
 $("#modalCopiar").onclick = async ()=>{
