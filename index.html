@@ -214,6 +214,7 @@ tbody tr:hover{background:var(--surface-2)}
     <nav>
       <button data-vista="buscar" aria-current="true">Búsqueda</button>
       <button data-vista="red">Red de analistas</button>
+      <button data-vista="post">Postulaciones <span id="badgePost"></span></button>
     </nav>
     <div class="who">
       <span id="quien"></span>
@@ -302,6 +303,23 @@ tbody tr:hover{background:var(--surface-2)}
             <div id="resultados"><div class="vacio">Analizá un pedido para ver candidatos.</div></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ---------- VISTA POSTULACIONES ---------- -->
+    <section id="vistaPost" class="hide">
+      <div class="card">
+        <h2>Postulaciones recibidas <span class="sub" id="contPost"></span></h2>
+        <div class="filtros">
+          <div class="field"><label>Búsqueda</label>
+            <input id="pf_bid" type="text" placeholder="X47, o vacío para todas"></div>
+          <div class="field"><label>Estado</label>
+            <select id="pf_estado"><option value="">Todos</option>
+              <option value="NUEVA">Nuevas</option><option value="REVISADA">Revisadas</option>
+              <option value="DESCARTADA">Descartadas</option></select></div>
+          <button class="btn ghost sm" id="btnRecargarPost">Aplicar</button>
+        </div>
+        <div id="listaPost"></div>
       </div>
     </section>
 
@@ -411,6 +429,7 @@ async function arrancar(user){
   $("#login").classList.add("hide");
   $("#app").classList.remove("hide");
   cargarRed();
+  contarNuevas();
 }
 
 /* ============ analizar el JD ============ */
@@ -675,6 +694,89 @@ Link de postulacion: ${link}`;
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
 }
 
+/* ============ postulaciones ============ */
+const EST_COLOR = {NUEVA:"var(--verde-bg)", REVISADA:"var(--surface-2)", DESCARTADA:"var(--warn-bg)"};
+
+async function contarNuevas(){
+  const { count } = await sb.from("postulaciones")
+    .select("id", { count:"exact", head:true }).eq("estado","NUEVA");
+  const b = $("#badgePost");
+  if (b) b.innerHTML = count ? `<span class="tag" style="margin-left:4px">${count}</span>` : "";
+}
+
+async function cargarPostulaciones(){
+  const cont = $("#listaPost");
+  cont.innerHTML = `<div class="cargando">Cargando...</div>`;
+  let q = sb.from("v_postulaciones").select("*").limit(200);
+  const bid = $("#pf_bid").value.trim(), est = $("#pf_estado").value;
+  if (bid) q = q.ilike("bid_code", `%${bid}%`);
+  if (est) q = q.eq("estado", est);
+  const { data, error } = await q;
+  if (error){ cont.innerHTML = `<div class="vacio">${esc(error.message)}</div>`; return; }
+  const filas = data || [];
+  $("#contPost").textContent = filas.length ? `· ${filas.length}` : "";
+  if (!filas.length){
+    cont.innerHTML = `<div class="vacio">Todavía no entró ninguna postulación.
+      Generá un post de LinkedIn para empezar a recibirlas.</div>`;
+    return;
+  }
+  cont.innerHTML = filas.map(p=>{
+    const resp = p.respuestas && Object.keys(p.respuestas).length
+      ? Object.entries(p.respuestas).map(([k,v])=>
+          `<div style="margin-top:7px"><b style="font-size:12.5px">${esc(k)}</b>
+           <div style="font-size:13px;color:var(--ink-2)">${esc(v)}</div></div>`).join("")
+      : `<div class="det" style="font-size:12.5px;color:var(--muted);margin-top:6px">Sin respuestas de screening.</div>`;
+    const fecha = new Date(p.creado).toLocaleDateString("es-AR",
+      {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+    return `
+    <div class="rowcard" style="grid-template-columns:1fr;cursor:default;
+         border-left:4px solid ${EST_COLOR[p.estado]||"var(--rule)"}">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+          <span class="nombre">${esc(p.nombre)}</span>
+          ${p.bid_code?`<span class="tag">${esc(p.bid_code)}</span>`:""}
+          <span class="cov">${fecha}</span>
+          <span class="cov" style="margin-left:auto">${esc(p.estado)}</span>
+        </div>
+        <div class="meta">${esc(p.pais||"—")} · ${p.anios_exp??"—"} años ·
+          ${p.rate_hora_usd?`USD ${p.rate_hora_usd}/h · USD ${Number(p.rate_mes).toLocaleString("es-AR")}/mes`:"sin rate"}</div>
+        <div class="meta">
+          <a href="mailto:${esc(p.email)}">${esc(p.email)}</a>
+          ${p.telefono?" · "+esc(p.telefono):""}
+          ${p.linkedin?` · <a href="https://${esc(p.linkedin.replace(/^https?:\/\//,""))}" target="_blank" rel="noopener">LinkedIn</a>`:""}
+        </div>
+        ${resp}
+        <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
+          ${p.cv_path?`<button class="btn ghost sm" data-cv="${esc(p.cv_path)}">Ver CV</button>`:""}
+          <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Marcar revisada</button>
+          <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  contarNuevas();
+}
+
+$("#listaPost").addEventListener("click", async e=>{
+  const bCv = e.target.closest("button[data-cv]");
+  if (bCv){
+    const { data, error } = await sb.storage.from("cvs")
+      .createSignedUrl(bCv.dataset.cv, 300);
+    if (error) { alert("No se pudo abrir el CV: " + error.message); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
+    return;
+  }
+  const bEst = e.target.closest("button[data-est]");
+  if (bEst){
+    const { error } = await sb.from("postulaciones")
+      .update({ estado: bEst.dataset.est }).eq("id", bEst.dataset.pid);
+    if (error) alert("No se pudo actualizar: " + error.message);
+    cargarPostulaciones();
+  }
+});
+
+$("#btnRecargarPost").onclick = cargarPostulaciones;
+
 /* ============ red ============ */
 async function cargarRed(){
   const tb = $("#tbodyRed");
@@ -783,6 +885,8 @@ $$("nav button").forEach(b => b.onclick = ()=>{
   $$("nav button").forEach(x=>x.setAttribute("aria-current", x===b));
   $("#vistaBuscar").classList.toggle("hide", b.dataset.vista!=="buscar");
   $("#vistaRed").classList.toggle("hide", b.dataset.vista!=="red");
+  $("#vistaPost").classList.toggle("hide", b.dataset.vista!=="post");
+  if (b.dataset.vista==="post") cargarPostulaciones();
 });
 
 $("#btnAnalizar").onclick = analizar;
