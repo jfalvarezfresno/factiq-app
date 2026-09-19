@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Postulate · FactIQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#042552; --navy-2:#0F4489; --verde:#05FF00; --verde-fg:#0A7A05;
+  --verde-bg:#E4F7E2; --paper:#F5F7FA; --card:#FFFFFF; --surface-2:#EAEFF5;
+  --ink:#0B1A2E; --ink-2:#2E4260; --muted:#5F7089; --rule:#D4DCE7;
+  --warn:#8A5A00; --warn-bg:#FBF0DA; --r:6px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:Lato,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+
+header{background:var(--navy);border-bottom:3px solid var(--verde);padding:20px}
+.wrap{max-width:660px;margin:0 auto}
+.wordmark{font-family:"Bree Serif",Georgia,serif;font-size:24px;color:#fff}
+.wordmark i{font-style:normal;color:var(--verde)}
+.tagline{color:#A9C0DC;font-size:12.5px;margin-top:2px;
+  font-family:"Roboto Mono",monospace;letter-spacing:.04em}
+
+main{padding:28px 20px 60px}
+h1{font-family:Roboto,sans-serif;font-weight:700;font-size:25px;
+  letter-spacing:-.02em;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 22px}
+.puesto{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--verde-fg);
+  border-radius:8px;padding:14px 16px;margin-bottom:24px}
+.puesto h2{font-family:Roboto,sans-serif;font-size:17px;margin:0 0 4px}
+.puesto .det{color:var(--muted);font-size:13.5px}
+.puesto .skills{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px}
+.sk{background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12.5px;
+  font-family:"Roboto Mono",monospace}
+
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+  padding:20px;margin-bottom:16px}
+.card > h3{font-family:Roboto,sans-serif;font-size:13px;margin:0 0 14px;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.field{margin-bottom:14px}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
+label .op{font-weight:400;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:3px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:var(--r);background:var(--card);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--navy-2);
+  box-shadow:0 0 0 3px rgba(15,68,137,.14)}
+textarea{min-height:76px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+.mal{border-color:#B4531F !important;background:#FBEDE4}
+
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:var(--r);
+  background:var(--navy);color:#fff;font-family:Roboto,sans-serif;font-weight:700;
+  font-size:16px;cursor:pointer}
+.btn:hover{background:var(--navy-2)}
+.btn:disabled{opacity:.5;cursor:default}
+.aviso{background:var(--warn-bg);border:1px solid #EADBB5;border-radius:var(--r);
+  padding:11px 13px;font-size:13.5px;margin-bottom:14px}
+.error{color:#B4531F;font-size:13.5px;margin-top:10px;min-height:18px}
+.nota{font-size:12.5px;color:var(--muted);margin-top:14px;text-align:center}
+
+#gracias{display:none;text-align:center;padding:44px 20px}
+#gracias .tick{width:56px;height:56px;border-radius:50%;background:var(--verde-bg);
+  color:var(--verde-fg);display:grid;place-items:center;margin:0 auto 16px;font-size:28px}
+#gracias h1{margin-bottom:8px}
+.cargando{color:var(--muted);text-align:center;padding:40px}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="wordmark">Fact<i>IQ</i></div>
+  <div class="tagline">Data Intelligence for Better Decisions</div>
+</div></header>
+
+<main class="wrap">
+  <div id="cargando" class="cargando">Cargando la búsqueda...</div>
+
+  <form id="form" style="display:none" novalidate>
+    <h1>Postulate a esta búsqueda</h1>
+    <p class="lead">Completá tus datos y te contactamos si tu perfil encaja.
+      Tarda unos tres minutos.</p>
+
+    <div class="puesto" id="puesto"></div>
+
+    <div class="card">
+      <h3>Tus datos</h3>
+      <div class="field"><label for="nombre">Nombre y apellido</label>
+        <input id="nombre" autocomplete="name"></div>
+      <div class="grid2">
+        <div class="field"><label for="email">Correo</label>
+          <input id="email" type="email" autocomplete="email"></div>
+        <div class="field"><label for="telefono">Teléfono <span class="op">(opcional)</span></label>
+          <input id="telefono" type="tel" autocomplete="tel" placeholder="+54 9 11 ..."></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="pais">País</label>
+          <input id="pais" placeholder="Argentina, México, Colombia..."></div>
+        <div class="field"><label for="linkedin">LinkedIn <span class="op">(opcional)</span></label>
+          <input id="linkedin" placeholder="linkedin.com/in/..."></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Tu experiencia</h3>
+      <div class="grid2">
+        <div class="field"><label for="anios">Años de experiencia total</label>
+          <input id="anios" type="number" min="0" max="60" step="1"></div>
+        <div class="field"><label for="disponible">Disponible desde</label>
+          <input id="disponible" type="date"></div>
+      </div>
+      <div class="field">
+        <label>Tus tecnologías</label>
+        <div class="skills" id="misSkills"></div>
+        <div class="hint">Tocá las que manejás. Si te falta alguna, agregala abajo.</div>
+        <input id="otroSkill" placeholder="Otra tecnología y Enter" style="margin-top:8px">
+      </div>
+      <div class="field"><label for="cv">Tu CV <span class="op">(PDF o Word, hasta 10 MB)</span></label>
+        <input id="cv" type="file" accept=".pdf,.doc,.docx"></div>
+    </div>
+
+    <div class="card" id="cardPreguntas" style="display:none">
+      <h3>Unas preguntas sobre el rol</h3>
+      <div id="preguntas"></div>
+    </div>
+
+    <div class="card">
+      <h3>Tu expectativa</h3>
+      <div class="grid2">
+        <div class="field"><label for="rateHora">USD por hora</label>
+          <input id="rateHora" type="number" step="0.5" placeholder="por hora"></div>
+        <div class="field"><label for="rateMes">USD por mes</label>
+          <input id="rateMes" type="number" step="10" placeholder="por mes"></div>
+      </div>
+      <div class="hint">Completá cualquiera de los dos y calculamos el otro.
+        Tomamos 160 horas por mes. Es una referencia, no un compromiso.</div>
+    </div>
+
+    <div class="error" id="err"></div>
+    <button class="btn" type="submit" id="btnEnviar">Enviar mi postulación</button>
+    <p class="nota">Tus datos quedan en la base de FactIQ para esta y futuras búsquedas.
+      Si querés que los borremos, escribinos a info@fact-iq.com.</p>
+  </form>
+
+  <div id="gracias">
+    <div class="tick">&#10003;</div>
+    <h1>Recibimos tu postulación</h1>
+    <p class="lead">Gracias por tomarte el tiempo. Si tu perfil encaja con la búsqueda
+      te vamos a escribir al correo que dejaste.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPA_URL = "https://adxuqnccpjmsbkjaxrbb.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeHVxbmNjcGptc2JramF4cmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNDMzODYsImV4cCI6MjEwNDgxOTM4Nn0.WS0JeKwhLTuXoy7BFP7T2CZA1nHpXkjXPCytakQpVNc";
+const HS_MES = 160;
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const $ = s => document.querySelector(s);
+
+const CODE = new URLSearchParams(location.search).get("b") || "";
+let BID = null, SKILLS = [], ELEGIDOS = new Set();
+
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g,
+  m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+
+async function arrancar(){
+  if (CODE){
+    const { data } = await sb.rpc("bid_publico", { p_code: CODE });
+    if (data && data.code) BID = data;
+  }
+  $("#cargando").style.display = "none";
+  $("#form").style.display = "block";
+
+  if (BID){
+    SKILLS = (BID.skills || []).slice(0, 18);
+    $("#puesto").innerHTML = `
+      <h2>${esc(BID.titulo || "Búsqueda abierta")}</h2>
+      <div class="det">
+        ${BID.seniority ? esc(BID.seniority)+" · " : ""}
+        ${BID.duracion ? esc(BID.duracion)+" meses · " : ""}remoto</div>
+      ${SKILLS.length ? `<div class="skills">${SKILLS.map(s=>`<span class="sk">${esc(s)}</span>`).join("")}</div>` : ""}`;
+    const preg = BID.preguntas || [];
+    if (preg.length){
+      $("#cardPreguntas").style.display = "block";
+      $("#preguntas").innerHTML = preg.map((q,i)=>`
+        <div class="field"><label for="p${i}">${esc(q)}</label>
+          <textarea id="p${i}" data-preg="${esc(q)}"></textarea></div>`).join("");
+    }
+  } else {
+    $("#puesto").innerHTML = `<h2>Postulación espontánea</h2>
+      <div class="det">Guardamos tu perfil para las búsquedas que abramos.</div>`;
+  }
+  pintarSkills();
+}
+
+function pintarSkills(){
+  const cont = $("#misSkills");
+  if (!SKILLS.length){ cont.innerHTML = `<span class="hint">Agregá las tuyas abajo.</span>`; return; }
+  cont.innerHTML = SKILLS.map((s,i)=>{
+    const on = ELEGIDOS.has(s);
+    return `<button type="button" class="sk" data-s="${esc(s)}"
+      style="cursor:pointer;border:1px solid ${on?'var(--verde-fg)':'var(--rule)'};
+             background:${on?'var(--verde-bg)':'var(--surface-2)'};
+             color:${on?'var(--verde-fg)':'inherit'}">${on?"✓ ":""}${esc(s)}</button>`;
+  }).join("");
+}
+
+$("#misSkills").addEventListener("click", e=>{
+  const b = e.target.closest("button[data-s]"); if(!b) return;
+  const s = b.dataset.s;
+  ELEGIDOS.has(s) ? ELEGIDOS.delete(s) : ELEGIDOS.add(s);
+  pintarSkills();
+});
+$("#otroSkill").addEventListener("keydown", e=>{
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const v = e.target.value.trim();
+  if (v && !SKILLS.includes(v)){ SKILLS.push(v); ELEGIDOS.add(v); e.target.value=""; pintarSkills(); }
+});
+
+// rate: hora <-> mes
+let editando = null;
+$("#rateHora").addEventListener("input", ()=>{
+  if (editando==="mes") return; editando="hora";
+  $("#rateMes").value = $("#rateHora").value ? Math.round(Number($("#rateHora").value)*HS_MES) : "";
+  editando=null;
+});
+$("#rateMes").addEventListener("input", ()=>{
+  if (editando==="hora") return; editando="mes";
+  $("#rateHora").value = $("#rateMes").value ? (Number($("#rateMes").value)/HS_MES).toFixed(2) : "";
+  editando=null;
+});
+
+$("#form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  $("#err").textContent = "";
+  const obligatorios = [["#nombre","nombre"],["#email","correo"],["#pais","país"],["#anios","años de experiencia"]];
+  let falta = null;
+  obligatorios.forEach(([sel,nom])=>{
+    const el = $(sel), vacio = !el.value.trim();
+    el.classList.toggle("mal", vacio);
+    if (vacio && !falta) falta = nom;
+  });
+  if (falta){ $("#err").textContent = `Nos falta tu ${falta}.`; $(obligatorios.find(o=>o[1]===falta)[0]).focus(); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($("#email").value.trim())){
+    $("#email").classList.add("mal"); $("#err").textContent = "Revisá el correo, no parece válido."; return;
+  }
+
+  const btn = $("#btnEnviar");
+  btn.disabled = true; btn.textContent = "Enviando...";
+
+  try{
+    // CV primero, si lo adjuntó
+    let cvPath = null;
+    const f = $("#cv").files[0];
+    if (f){
+      if (f.size > 10*1024*1024) throw new Error("El CV pesa más de 10 MB.");
+      const ext = (f.name.split(".").pop()||"pdf").toLowerCase();
+      cvPath = `${CODE||"espontanea"}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error } = await sb.storage.from("cvs").upload(cvPath, f, { contentType: f.type });
+      if (error) cvPath = null;   // que un fallo del archivo no tumbe la postulación
+    }
+
+    const respuestas = {};
+    document.querySelectorAll("[data-preg]").forEach(t=>{
+      if (t.value.trim()) respuestas[t.dataset.preg] = t.value.trim();
+    });
+
+    const { error } = await sb.rpc("postularse", { p: {
+      bid_code: CODE,
+      nombre: $("#nombre").value.trim(),
+      email: $("#email").value.trim(),
+      telefono: $("#telefono").value.trim(),
+      pais: $("#pais").value.trim(),
+      linkedin: $("#linkedin").value.trim(),
+      anios_exp: $("#anios").value || null,
+      rate_hora_usd: $("#rateHora").value || null,
+      disponible_desde: $("#disponible").value || null,
+      skills: [...ELEGIDOS],
+      respuestas,
+      cv_path: cvPath
+    }});
+    if (error) throw new Error(error.message);
+
+    $("#form").style.display = "none";
+    $("#gracias").style.display = "block";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }catch(e){
+    $("#err").textContent = "No pudimos enviar tu postulación: " + e.message +
+      ". Probá de nuevo o escribinos a info@fact-iq.com.";
+    btn.disabled = false; btn.textContent = "Enviar mi postulación";
+  }
+});
+
+arrancar();
+</script>
+</body>
+</html>
