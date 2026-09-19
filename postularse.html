@@ -115,7 +115,7 @@ textarea{min-height:76px;resize:vertical}
       <div class="grid2">
         <div class="field"><label for="anios">Años de experiencia total</label>
           <input id="anios" type="number" min="0" max="60" step="1"></div>
-        <div class="field"><label for="disponible">Disponible desde</label>
+        <div class="field"><label for="disponible">Podrías arrancar desde</label>
           <input id="disponible" type="date"></div>
       </div>
       <div class="field">
@@ -124,6 +124,9 @@ textarea{min-height:76px;resize:vertical}
         <div class="hint">Tocá las que manejás. Si te falta alguna, agregala abajo.</div>
         <input id="otroSkill" placeholder="Otra tecnología y Enter" style="margin-top:8px">
       </div>
+      <div class="field"><label for="dispEntrevista">¿Cuándo podés tener una entrevista?</label>
+        <input id="dispEntrevista" placeholder="Ej: martes y jueves después de las 18, o cualquier día por la mañana">
+        <div class="hint">Días y horarios que te vienen bien, en tu huso horario.</div></div>
       <div class="field"><label for="cv">Tu CV <span class="op">(PDF o Word, hasta 10 MB)</span></label>
         <input id="cv" type="file" accept=".pdf,.doc,.docx"></div>
     </div>
@@ -286,6 +289,7 @@ $("#form").addEventListener("submit", async e=>{
       anios_exp: $("#anios").value || null,
       rate_hora_usd: $("#rateHora").value || null,
       disponible_desde: $("#disponible").value || null,
+      disp_entrevista: $("#dispEntrevista").value.trim(),
       skills: [...ELEGIDOS],
       respuestas,
       cv_path: cvPath
