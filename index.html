@@ -215,6 +215,7 @@ tbody tr:hover{background:var(--surface-2)}
       <button data-vista="buscar" aria-current="true">Búsqueda</button>
       <button data-vista="red">Red de analistas</button>
       <button data-vista="post">Postulaciones <span id="badgePost"></span></button>
+      <button data-vista="lic">Licitaciones</button>
     </nav>
     <div class="who">
       <span id="quien"></span>
@@ -303,6 +304,25 @@ tbody tr:hover{background:var(--surface-2)}
             <div id="resultados"><div class="vacio">Analizá un pedido para ver candidatos.</div></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ---------- VISTA LICITACIONES ---------- -->
+    <section id="vistaLic" class="hide">
+      <div class="card">
+        <h2>Licitaciones <span class="sub" id="contLic"></span></h2>
+        <div style="max-height:34vh;overflow:auto;margin-bottom:16px">
+          <table>
+            <thead><tr>
+              <th>Código</th><th>Título</th><th>Budget/mes</th><th>Enviados</th>
+              <th>Ganados</th><th>Perdidos</th><th>Sin resultado</th>
+              <th>Margen prom.</th><th>Ganancia/mes</th>
+            </tr></thead>
+            <tbody id="tbodyLic"></tbody>
+          </table>
+        </div>
+        <h2>Perfiles enviados <span class="sub" id="contEnv"></span></h2>
+        <div id="listaEnvios"></div>
       </div>
     </section>
 
@@ -628,12 +648,17 @@ function pintarDetalle(i){
 /* ============ mensajes ============ */
 let MODAL_DEST = "";
 function abrirModal(tit, asunto, cuerpo, destino){
+  // limpiar el estado que deja el modal de propuesta
+  $("#modalCuerpo").style.display = "";
+  const pb = $("#propBloque"); if (pb) pb.remove();
+  $("#modalMailLocal").classList.remove("hide");
   $("#modalTit").textContent = tit;
   $("#modalAsuntoWrap").classList.toggle("hide", asunto===null);
   $("#modalAsunto").value = asunto ?? "";
   $("#modalCuerpo").value = cuerpo ?? "";
   $("#modalLabel").textContent = asunto===null ? "Texto" : "Mensaje";
   $("#modalMailto").classList.toggle("hide", !destino && asunto===null);
+  $("#modalMailLocal").classList.toggle("hide", !destino && asunto===null);
   MODAL_DEST = destino || "";
   $("#modalErr").textContent = "";
   $("#modal").classList.remove("hide");
@@ -703,6 +728,90 @@ Link de postulacion: ${link}`;
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
 }
 
+/* ============ CV anonimizado ============ */
+const SEN_NOM = {JR:"Junior", SSR:"Semi Senior", SSR_ADV:"Semi Senior avanzado",
+                 SR:"Senior", EXPERT:"Experto"};
+
+// "Edgar Caceres Olmedo" -> "Edgar C."
+function anonimo(nombre){
+  const p = String(nombre||"").trim().split(/\s+/);
+  return p.length < 2 ? (p[0]||"Analista") : `${p[0]} ${p[1][0].toUpperCase()}.`;
+}
+
+async function cvAnonimo(analystId, bidCode){
+  const [{data:a}, {data:tec}, {data:rol}, {data:idi}] = await Promise.all([
+    sb.from("analysts").select("full_name,country,seniority,total_years_exp,summary")
+      .eq("id",analystId).maybeSingle(),
+    sb.from("analyst_technologies").select("years_exp,technologies(name,category)").eq("analyst_id",analystId),
+    sb.from("analyst_roles").select("years_exp,roles(name)").eq("analyst_id",analystId),
+    sb.from("analyst_languages").select("lang,level").eq("analyst_id",analystId)
+  ]);
+  if (!a){ alert("No se encontró el analista."); return; }
+
+  const porCat = {};
+  (tec||[]).forEach(t=>{ if(!t.technologies) return;
+    (porCat[t.technologies.category||"Otros"] ??= []).push(t.technologies.name); });
+
+  const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<title>${esc(anonimo(a.full_name))} · FactIQ</title>
+<link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#042552;--verde:#05FF00;--ink:#0B1A2E;--muted:#5F7089;
+  --rule:#D4DCE7;--surface:#EAEFF5}
+*{box-sizing:border-box}
+body{margin:0;background:#8891a0;font-family:Lato,sans-serif;color:var(--ink);
+  font-size:13px;line-height:1.55}
+.hoja{width:210mm;min-height:297mm;margin:14px auto;background:#fff;padding-bottom:20mm}
+.top{background:var(--navy);border-bottom:3px solid var(--verde);padding:15mm 16mm 9mm}
+.wm{font-family:"Bree Serif",serif;font-size:20px;color:#fff}
+.wm i{font-style:normal;color:var(--verde)}
+.nom{font-family:Roboto,sans-serif;font-weight:700;font-size:29px;color:#fff;
+  letter-spacing:-.02em;margin-top:13px}
+.sub{color:#A9C0DC;font-family:"Roboto Mono",monospace;font-size:12px;margin-top:3px}
+.cuerpo{padding:9mm 16mm}
+h2{font-family:Roboto,sans-serif;font-size:11px;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--muted);margin:15px 0 7px;
+  border-bottom:1px solid var(--rule);padding-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{background:var(--surface);border-radius:3px;padding:2px 8px;
+  font-family:"Roboto Mono",monospace;font-size:11.5px}
+.cat{margin-bottom:9px}
+.cat b{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+.fila{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #EEF1F5}
+.pie{padding:8px 16mm 0;margin-top:16px;color:var(--muted);font-size:10.5px;
+  border-top:1px solid var(--rule)}
+.barra{position:fixed;top:10px;right:10px;display:flex;gap:8px}
+.barra button{font-family:Roboto,sans-serif;font-weight:700;border:0;border-radius:6px;
+  padding:9px 14px;background:var(--navy);color:#fff;cursor:pointer}
+@media print{body{background:#fff}.hoja{margin:0}.barra{display:none}@page{size:A4;margin:0}}
+</style></head><body>
+<div class="barra"><button onclick="window.print()">Guardar como PDF</button></div>
+<div class="hoja">
+  <div class="top">
+    <div class="wm">Fact<i>IQ</i></div>
+    <div class="nom">${esc(anonimo(a.full_name))}</div>
+    <div class="sub">${esc(a.country||"")}${a.seniority?" · "+esc(SEN_NOM[a.seniority]||a.seniority):""}${a.total_years_exp?" · "+a.total_years_exp+" años de experiencia":""}</div>
+  </div>
+  <div class="cuerpo">
+    ${a.summary?`<h2>Perfil</h2><p>${esc(a.summary)}</p>`:""}
+    ${(rol||[]).length?`<h2>Roles</h2>${(rol||[]).filter(r=>r.roles).map(r=>
+      `<div class="fila"><span>${esc(r.roles.name)}</span><span style="color:var(--muted)">${r.years_exp?r.years_exp+" años":""}</span></div>`).join("")}`:""}
+    ${Object.keys(porCat).length?`<h2>Tecnologías</h2>${Object.entries(porCat).map(([c,ts])=>
+      `<div class="cat"><b>${esc(c)}</b><div class="chips">${chips(ts)}</div></div>`).join("")}`:""}
+    ${(idi||[]).length?`<h2>Idiomas</h2><div class="chips">${(idi||[]).map(l=>
+      `<span class="chip">${esc(LANG_NOM[l.lang]||l.lang)} ${esc(NIV_NOM[l.level]||"")}</span>`).join("")}</div>`:""}
+  </div>
+  <div class="pie">Perfil preparado por FactIQ${bidCode?" · "+esc(bidCode):""} ·
+    info@fact-iq.com · fact-iq.com<br>
+    Los datos de contacto se comparten una vez confirmado el interés.</div>
+</div></body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w){ alert("El navegador bloqueó la ventana. Permití las ventanas emergentes."); return; }
+  w.document.write(html); w.document.close();
+}
+
 /* ============ postulaciones ============ */
 const EST_COLOR = {NUEVA:"var(--verde-bg)", REVISADA:"var(--surface-2)", DESCARTADA:"var(--warn-bg)"};
 
@@ -755,12 +864,19 @@ async function cargarPostulaciones(){
           ${p.linkedin?` · <a href="https://${esc(p.linkedin.replace(/^https?:\/\//,""))}" target="_blank" rel="noopener">LinkedIn</a>`:""}
         </div>
         ${resp}
+        <div class="meta" style="margin-top:6px">
+          ${p.disp_entrevista?`<b>Entrevistas:</b> ${esc(p.disp_entrevista)}`:""}
+          ${p.disponible_desde?` &nbsp;·&nbsp; <b>Arranca:</b> ${esc(p.disponible_desde)}`:""}
+        </div>
         <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
           ${p.cv_path
             ? `<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
             : `<span class="sincontacto" style="align-self:center">sin CV adjunto</span>`}
+          ${p.analyst_id?`<button class="btn ghost sm" data-cvanon="${esc(p.analyst_id)}" data-bid="${esc(p.bid_code||"")}">CV anonimizado</button>`:""}
+          ${(ROL==="ADMIN" && p.analyst_id)?`<button class="btn sm" data-prop="${esc(p.id)}">Contactar con propuesta</button>`:""}
           <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Marcar revisada</button>
           <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
+          ${p.ya_enviado?`<span class="enviado" style="align-self:center">ya enviado a ${esc(p.bid_code)}</span>`:""}
         </div>
       </div>
     </div>`;
@@ -799,6 +915,12 @@ async function verCV(ruta, nombre){
 $("#listaPost").addEventListener("click", async e=>{
   const bCv = e.target.closest("button[data-cv]");
   if (bCv){ verCV(bCv.dataset.cv, bCv.dataset.nom || ""); return; }
+  const bAnon = e.target.closest("button[data-cvanon]");
+  if (bAnon){ cvAnonimo(bAnon.dataset.cvanon, bAnon.dataset.bid); return; }
+
+  const bProp = e.target.closest("button[data-prop]");
+  if (bProp){ abrirPropuesta(bProp.dataset.prop); return; }
+
   const bEst = e.target.closest("button[data-est]");
   if (bEst){
     const { error } = await sb.from("postulaciones")
@@ -809,6 +931,214 @@ $("#listaPost").addEventListener("click", async e=>{
 });
 
 $("#btnRecargarPost").onclick = cargarPostulaciones;
+
+/* ============ propuesta ============ */
+let PROP = null;
+
+async function abrirPropuesta(postId){
+  const { data: p } = await sb.from("v_postulaciones").select("*").eq("id", postId).maybeSingle();
+  if (!p){ alert("No se encontró la postulación."); return; }
+  const { data: b } = p.bid_code
+    ? await sb.from("v_licitaciones").select("*").eq("codigo", p.bid_code).maybeSingle()
+    : { data: null };
+
+  const costoH = Number(p.rate_hora_usd || 0);
+  const costoM = costoH * HS_MES;
+  if (!costoH){ alert("Este candidato no declaró su pretensión, no se puede calcular el precio."); return; }
+
+  const opcA = costoM + MARGEN_FIJO;
+  const opcB = costoM * (1 + MARGEN_PCT);
+  const budgetM = b?.budget_mes ? Number(b.budget_mes) : null;
+  PROP = { p, b, costoH, costoM, precioM: opcA };
+
+  const fila = (id, tit, val) => {
+    const fuera = budgetM && val > budgetM;
+    return `<label class="precio ${fuera?"":"elegido"}" style="display:block;cursor:pointer">
+      <input type="radio" name="opcion" value="${val}" ${id==="a"?"checked":""} style="width:auto;margin-right:7px">
+      <span class="tit">${tit}</span>
+      <div class="val tabular">USD ${Math.round(val).toLocaleString("es-AR")} /mes</div>
+      <div class="det tabular">USD ${(val/HS_MES).toFixed(2)}/h · ganancia ${Math.round(val-costoM).toLocaleString("es-AR")} USD/mes (${Math.round((val/costoM-1)*100)}%)</div>
+      ${fuera?`<div class="det" style="color:var(--warn)">Se pasa ${Math.round(val-budgetM).toLocaleString("es-AR")} USD del budget</div>`:""}
+    </label>`;
+  };
+
+  let alerta = "";
+  if (budgetM && Math.min(opcA,opcB) > budgetM){
+    const mMax = budgetM - costoM;
+    alerta = `<div class="aviso"><b>Las dos opciones superan el budget.</b>
+      El techo es USD ${Math.round(budgetM).toLocaleString("es-AR")}/mes, que deja
+      ${Math.round(mMax).toLocaleString("es-AR")} USD de ganancia
+      (${Math.round((budgetM/costoM-1)*100)}%).
+      ${mMax<0?"El candidato pide más que el budget completo.":""}</div>`;
+  }
+
+  $("#modalTit").textContent = "Propuesta · " + p.nombre;
+  $("#modalAsuntoWrap").classList.add("hide");
+  $("#modalLabel").textContent = "Economía del envío";
+  $("#modalCuerpo").style.display = "none";
+  $("#modalErr").textContent = "";
+  $("#modalMailto").classList.add("hide");
+  $("#modalMailLocal").classList.add("hide");
+
+  let extra = $("#propBloque");
+  if (!extra){
+    extra = document.createElement("div");
+    extra.id = "propBloque";
+    $("#modalCuerpo").parentElement.appendChild(extra);
+  }
+  extra.innerHTML = `
+    <div class="det" style="font-size:12.5px;color:var(--muted);margin-bottom:9px">
+      ${esc(p.nombre)} pide USD ${costoH}/h · USD ${Math.round(costoM).toLocaleString("es-AR")}/mes.
+      ${p.bid_code?`Licitación <b>${esc(p.bid_code)}</b>${budgetM?` · budget USD ${Math.round(budgetM).toLocaleString("es-AR")}/mes`:""}`:"Sin licitación asociada"}
+    </div>
+    ${fila("a","Margen fijo · 1.000 USD", opcA)}
+    ${fila("b","Margen histórico · 45,5%", opcB)}
+    <div class="field" style="margin-top:8px"><label>O poné el precio a mano (USD/mes)</label>
+      <input id="precioManual" type="number" step="10" placeholder="dejar vacío para usar la opción elegida"></div>
+    ${alerta}
+    <div class="grid2">
+      <div class="field"><label>Disponible para entrevistas</label>
+        <input id="propEntrev" value="${esc(p.disp_entrevista||"")}"></div>
+      <div class="field"><label>Puede arrancar</label>
+        <input id="propInicio" type="date" value="${esc(p.disponible_desde||"")}"></div>
+    </div>
+    <div class="field"><label>Notas internas</label><input id="propNotas" placeholder="opcional"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn" id="btnRegistrar" type="button">Registrar envío</button>
+      <button class="btn ghost" id="btnMailProp" type="button">Redactar mail a 4Latam</button>
+    </div>`;
+  $("#modal").classList.remove("hide");
+}
+
+function precioElegido(){
+  const manual = $("#precioManual")?.value;
+  if (manual) return Number(manual);
+  const r = document.querySelector("input[name=opcion]:checked");
+  return r ? Number(r.value) : PROP.precioM;
+}
+
+document.addEventListener("click", async e=>{
+  if (e.target.id === "btnRegistrar"){
+    if (!PROP?.p.bid_code){ $("#modalErr").textContent = "Esta postulación no tiene licitación asociada."; return; }
+    const precioM = precioElegido();
+    const { error } = await sb.rpc("registrar_envio", { p: {
+      bid_code: PROP.p.bid_code, analyst_id: PROP.p.analyst_id,
+      costo_hora: PROP.costoH, precio_hora: (precioM/HS_MES).toFixed(2),
+      meses: PROP.b?.meses || null,
+      disp_entrevista: $("#propEntrev").value.trim(),
+      disp_inicio: $("#propInicio").value || null,
+      notas: $("#propNotas").value.trim()
+    }});
+    if (error){ $("#modalErr").textContent = "No se pudo registrar: " + error.message; return; }
+    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Envío registrado en ${esc(PROP.p.bid_code)}.</span>`;
+    cargarPostulaciones();
+  }
+
+  if (e.target.id === "btnMailProp"){
+    const precioM = precioElegido();
+    const p = PROP.p;
+    const asunto = `FactIQ · Perfil para ${PROP.b?.titulo || p.bid_code || "la búsqueda"}`;
+    const cuerpo =
+`Hola Rocío, Marcelo,
+
+Les acercamos un perfil para ${PROP.b?.titulo || p.bid_code || "la búsqueda"}.
+
+Analista: ${anonimo(p.nombre)}
+País: ${p.pais || "a confirmar"}
+Experiencia: ${p.anios_exp || "-"} años
+Precio: USD ${(precioM/HS_MES).toFixed(2)}/hora · USD ${Math.round(precioM).toLocaleString("es-AR")}/mes (160 hs)
+${PROP.b?.meses ? `Duración: ${PROP.b.meses} meses` : ""}
+Disponibilidad para entrevistas: ${$("#propEntrev").value.trim() || "a coordinar"}
+Puede arrancar: ${$("#propInicio").value || "a confirmar"}
+
+Adjuntamos el CV del perfil. Quedamos atentos para coordinar la entrevista.
+
+Saludos,
+El equipo de FactIQ`;
+    const url = "https://outlook.office.com/mail/deeplink/compose"
+      + `?to=${encodeURIComponent(MAIL_4LATAM)}`
+      + `&cc=${encodeURIComponent(MAIL_CC)}`
+      + `&subject=${encodeURIComponent(asunto)}`
+      + `&body=${encodeURIComponent(cuerpo)}`;
+    window.open(url, "_blank", "noopener");
+  }
+});
+
+/* ============ licitaciones ============ */
+const RES_COLOR = {WON:"var(--verde-bg)", LOST:"var(--warn-bg)"};
+
+async function cargarLicitaciones(){
+  const { data: lic, error } = await sb.from("v_licitaciones").select("*").limit(100);
+  const tb = $("#tbodyLic");
+  if (error){ tb.innerHTML = `<tr><td colspan="9" class="vacio">${esc(error.message)}</td></tr>`; return; }
+  $("#contLic").textContent = (lic||[]).length ? `· ${lic.length}` : "";
+  tb.innerHTML = (lic||[]).map(l=>`
+    <tr>
+      <td><b>${esc(l.codigo)}</b></td>
+      <td>${esc(l.titulo||"—")}</td>
+      <td class="tabular">${l.budget_mes?Number(l.budget_mes).toLocaleString("es-AR"):"—"}</td>
+      <td class="tabular">${l.enviados}</td>
+      <td class="tabular" style="color:var(--verde-fg)">${l.ganados||""}</td>
+      <td class="tabular" style="color:var(--warn)">${l.perdidos||""}</td>
+      <td class="tabular">${l.sin_resultado||""}</td>
+      <td class="tabular">${l.margen_prom_pct?l.margen_prom_pct+"%":"—"}</td>
+      <td class="tabular">${l.ganancia_mes_ganada?"USD "+Number(l.ganancia_mes_ganada).toLocaleString("es-AR"):"—"}</td>
+    </tr>`).join("") || `<tr><td colspan="9" class="vacio">Todavía no hay licitaciones guardadas.</td></tr>`;
+
+  const { data: env } = await sb.from("v_envios").select("*").limit(200);
+  $("#contEnv").textContent = (env||[]).length ? `· ${env.length}` : "";
+  $("#listaEnvios").innerHTML = (env||[]).map(s=>`
+    <div class="rowcard" style="grid-template-columns:1fr auto;cursor:default;
+         border-left:4px solid ${RES_COLOR[s.resultado]||"var(--rule)"}">
+      <div>
+        <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+          <span class="nombre">${esc(s.analista)}</span>
+          <span class="tag">${esc(s.codigo)}</span>
+          <span class="cov">${esc(s.pais||"—")}</span>
+          ${s.resultado?`<span class="cov"><b>${esc(s.resultado)}</b>${s.motivo?" · "+esc(s.motivo):""}</span>`:""}
+        </div>
+        <div class="meta tabular">
+          Costo USD ${Number(s.costo_mes||0).toLocaleString("es-AR")}/mes ·
+          Precio USD ${Number(s.precio_mes||0).toLocaleString("es-AR")}/mes ·
+          Margen ${s.margen_pct??"—"}% ·
+          <b>Ganancia USD ${Number(s.ganancia_mes||0).toLocaleString("es-AR")}/mes</b>
+          ${s.meses?` · ${s.meses} meses`:""}
+        </div>
+        <div class="meta">
+          ${s.disp_entrevista?`<b>Entrevistas:</b> ${esc(s.disp_entrevista)}`:""}
+          ${s.disp_inicio?` · <b>Arranca:</b> ${esc(s.disp_inicio)}`:""}
+          ${s.enviado?` · enviado ${esc(s.enviado)}`:""}
+        </div>
+        ${s.notas?`<div class="meta" style="font-style:italic">${esc(s.notas)}</div>`:""}
+        ${!s.resultado?`
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn sm" data-res="WON" data-env="${esc(s.envio_id)}">Entró</button>
+          <button class="btn ghost sm" data-res="LOST" data-env="${esc(s.envio_id)}">No entró</button>
+          <button class="btn ghost sm" data-cvanon="${esc(s.analyst_id)}" data-bid="${esc(s.codigo)}">CV anonimizado</button>
+        </div>`:`
+        <div style="margin-top:8px">
+          <button class="btn ghost sm" data-res="" data-env="${esc(s.envio_id)}">Deshacer resultado</button>
+        </div>`}
+      </div>
+      <div class="score"><b class="tabular">${s.margen_pct??"—"}</b><span>% margen</span></div>
+    </div>`).join("") || `<div class="vacio">Todavía no registraste ningún envío.</div>`;
+}
+
+$("#listaEnvios").addEventListener("click", async e=>{
+  const bAnon = e.target.closest("button[data-cvanon]");
+  if (bAnon){ cvAnonimo(bAnon.dataset.cvanon, bAnon.dataset.bid); return; }
+  const b = e.target.closest("button[data-res]");
+  if (!b) return;
+  let motivo = null;
+  if (b.dataset.res === "LOST"){
+    motivo = prompt("¿Por qué no entró? (precio, inglés, técnica, otro candidato...)");
+    if (motivo === null) return;
+  }
+  const { error } = await sb.rpc("marcar_resultado", {
+    p_envio: b.dataset.env, p_outcome: b.dataset.res || null, p_motivo: motivo });
+  if (error) alert("No se pudo guardar: " + error.message);
+  cargarLicitaciones();
+});
 
 /* ============ red ============ */
 async function cargarRed(){
@@ -919,7 +1249,9 @@ $$("nav button").forEach(b => b.onclick = ()=>{
   $("#vistaBuscar").classList.toggle("hide", b.dataset.vista!=="buscar");
   $("#vistaRed").classList.toggle("hide", b.dataset.vista!=="red");
   $("#vistaPost").classList.toggle("hide", b.dataset.vista!=="post");
+  $("#vistaLic").classList.toggle("hide", b.dataset.vista!=="lic");
   if (b.dataset.vista==="post") cargarPostulaciones();
+  if (b.dataset.vista==="lic")  cargarLicitaciones();
 });
 
 $("#btnAnalizar").onclick = analizar;
