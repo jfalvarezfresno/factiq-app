@@ -762,12 +762,15 @@ async function cvAnonimo(analystId, bidCode){
     return;
   }
 
-  const li = xs => (xs||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+  const li  = xs => (xs||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+  const liB = xs => (xs||[]).map(x=>`<li><b>${esc(x)}</b></li>`).join("");
   const exp = (cv.work_experience||[]).map(e=>`
     <div class="puesto">
-      <div class="rol">${esc(e.role||"")}</div>
-      <div class="emp">${esc(e.company||"")}</div>
-      ${e.period?`<div class="per">${esc(e.period)}</div>`:""}
+      <ul class="cab">
+        <li><b>${esc(e.role||"")}</b></li>
+        <li><b>${esc((e.company||"").toUpperCase())}</b></li>
+      </ul>
+      ${e.period?`<p class="per">${esc(e.period)}</p>`:""}
       <ul>${li(e.bullets)}</ul>
     </div>`).join("");
 
@@ -778,16 +781,17 @@ async function cvAnonimo(analystId, bidCode){
 body{margin:0;background:#8891a0;font-family:Calibri,Carlito,"Segoe UI",sans-serif;
   color:#1a1a1a;font-size:11pt;line-height:1.35}
 .hoja{width:210mm;min-height:297mm;margin:14px auto;background:#fff;padding:18mm 20mm}
-h1{font-size:14pt;font-weight:700;margin:0 0 14px;letter-spacing:.02em}
-h2{font-size:11pt;font-weight:700;margin:15px 0 4px}
-p{margin:0 0 7px;text-align:justify}
-ul{margin:3px 0 8px;padding-left:20px}
+h1{font-size:12pt;font-weight:700;margin:0 0 15px}
+h2{font-size:11pt;font-weight:700;margin:14px 0 3px}
+h2.may{text-transform:uppercase}
+p{margin:0 0 6px;text-align:justify}
+ul{margin:2px 0 7px;padding-left:22px}
 li{margin-bottom:3px;text-align:justify}
-.dato{margin-bottom:8px}
-.puesto{margin-bottom:11px}
-.rol{font-weight:700}
-.emp{font-weight:700}
-.per{margin-bottom:2px}
+.dato{margin-bottom:7px}
+.puesto{margin-bottom:10px}
+.puesto ul.cab{margin:0;padding-left:22px}
+.puesto ul.cab li{margin-bottom:0}
+.per{margin:0 0 3px}
 .barra{position:fixed;top:10px;right:10px;display:flex;gap:8px}
 .barra button{font-family:system-ui;font-weight:600;border:0;border-radius:6px;
   padding:9px 14px;background:#042552;color:#fff;cursor:pointer}
@@ -801,17 +805,18 @@ li{margin-bottom:3px;text-align:justify}
   <button onclick="window.print()">Guardar como PDF</button>
 </div>
 <div class="hoja">
-  <h1>${esc(cv.titulo||"CV")}</h1>
+  <h1>${esc((cv.titulo||"CV").replace(/^CV\s*[-–—]\s*/i, "CV – "))}</h1>
   ${cv.location?`<div class="dato"><b>Location</b><br>${esc(cv.location)}</div>`:""}
   ${cv.total_years?`<div class="dato"><b>Total Work Experience Years</b><br>${esc(cv.total_years)}</div>`:""}
   ${(cv.professional_summary||[]).length?`<h2>Professional Summary</h2>
     ${(cv.professional_summary||[]).map(t=>`<p>${esc(t)}</p>`).join("")}`:""}
   ${(cv.education||[]).length?`<h2>Educational Background<br>(Certifications / Courses)</h2>
     <ul>${li(cv.education)}</ul>`:""}
+  ${/* Work Experience va abajo, con rol y empresa como vinetas */""}
   ${exp?`<h2>Work Experience</h2>${exp}`:""}
-  ${(cv.technologies||[]).length?`<h2>TECHNOLOGIES AND OTHER TOOLS</h2><ul>${li(cv.technologies)}</ul>`:""}
-  ${(cv.languages||[]).length?`<h2>LANGUAGES</h2><ul>${li(cv.languages)}</ul>`:""}
-  ${(cv.skills||[]).length?`<h2>SKILLS</h2><ul>${li(cv.skills)}</ul>`:""}
+  ${(cv.technologies||[]).length?`<h2 class="may">Technologies and other tools</h2><ul>${li(cv.technologies)}</ul>`:""}
+  ${(cv.languages||[]).length?`<h2 class="may">Languages</h2><ul>${liB(cv.languages)}</ul>`:""}
+  ${(cv.skills||[]).length?`<h2 class="may">Skills</h2><ul>${liB(cv.skills)}</ul>`:""}
 </div></body></html>`;
   w.document.open(); w.document.write(html); w.document.close();
 }
