@@ -642,17 +642,36 @@ Datos que faltan en el Job Description: ${faltan.join(", ")}.`;
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
 }
 
+const URL_FORM = "https://factiqoutsourcing.netlify.app/postularse.html";
+
 async function generarPost(){
+  // guardar la busqueda: el formulario necesita el codigo para saber que preguntar
+  let code = null;
+  try{
+    const { data } = await sb.rpc("guardar_busqueda", { p: {
+      titulo: $("#f_titulo").value, seniority: $("#f_seniority").value || null,
+      duracion: $("#f_duracion").value || null, budget: $("#f_budget").value || null,
+      zona_horaria: $("#f_zona").value, skills: SKILLS,
+      preguntas: ULTIMO?.preguntas_screening || []
+    }});
+    code = data;
+  }catch(e){ /* si falla, el post igual se genera sin link personalizado */ }
+  const link = code ? `${URL_FORM}?b=${code}` : URL_FORM;
+
   const ctx = `Rol: ${$("#f_titulo").value}.
 Seniority: ${$("#f_seniority").value||"a definir"}.
 Duración: ${$("#f_duracion").value||"a definir"} meses.
 Zona horaria: ${$("#f_zona").value||"LATAM"}.
 Skills: ${SKILLS.join(", ")}.
-Preguntas sugeridas: ${(ULTIMO?.preguntas_screening||[]).join(" | ")}`;
+Preguntas sugeridas: ${(ULTIMO?.preguntas_screening||[]).join(" | ")}
+Link de postulacion: ${link}`;
   abrirModal("Publicación de LinkedIn", null, "Redactando...", "");
   try{
     const d = await llamarIA("post", ctx);
-    $("#modalCuerpo").value = d.post || "";
+    $("#modalCuerpo").value = (d.post || "").replace("{LINK}", link)
+      + (String(d.post||"").includes(link) ? "" : `\n\nPostulate acá: ${link}`);
+    if (code) $("#modalErr").innerHTML =
+      `<span style="color:var(--verde-fg)">Búsqueda guardada como <b>${code}</b>. El formulario ya muestra estos skills y preguntas.</span>`;
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
 }
 
