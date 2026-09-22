@@ -13,7 +13,7 @@
   --navy:#042552; --navy-2:#0F4489; --verde:#05FF00; --verde-fg:#0A7A05;
   --verde-bg:#E4F7E2; --paper:#F5F7FA; --card:#FFFFFF; --surface-2:#EAEFF5;
   --ink:#0B1A2E; --ink-2:#2E4260; --muted:#5F7089; --rule:#D4DCE7;
-  --warn:#8A5A00; --warn-bg:#FBF0DA; --r:6px;
+  --warn:#8A5A00; --warn-bg:#FBF0DA; --err:#B4531F; --r:6px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -30,49 +30,60 @@ header{background:var(--navy);border-bottom:3px solid var(--verde);padding:20px}
   font-family:"Roboto Mono",monospace;letter-spacing:.04em}
 
 main{padding:28px 20px 60px}
-h1{font-family:Roboto,sans-serif;font-weight:700;font-size:25px;
-  letter-spacing:-.02em;margin:0 0 6px}
+h1{font-family:Roboto,sans-serif;font-weight:700;font-size:25px;letter-spacing:-.02em;margin:0 0 6px}
 .lead{color:var(--muted);margin:0 0 22px}
 .puesto{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--verde-fg);
-  border-radius:8px;padding:14px 16px;margin-bottom:24px}
+  border-radius:8px;padding:14px 16px;margin-bottom:22px}
 .puesto h2{font-family:Roboto,sans-serif;font-size:17px;margin:0 0 4px}
 .puesto .det{color:var(--muted);font-size:13.5px}
 .puesto .skills{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px}
 .sk{background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12.5px;
-  font-family:"Roboto Mono",monospace}
+  font-family:"Roboto Mono",monospace;border:1px solid var(--rule)}
 
-.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;
-  padding:20px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px;margin-bottom:16px}
 .card > h3{font-family:Roboto,sans-serif;font-size:13px;margin:0 0 14px;
   text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
 .field{margin-bottom:14px}
 label{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
 label .op{font-weight:400;color:var(--muted)}
+label .ob{color:var(--err)}
 .hint{font-size:12.5px;color:var(--muted);margin-top:3px}
 input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--rule);
   border-radius:var(--r);background:var(--card);outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--navy-2);
-  box-shadow:0 0 0 3px rgba(15,68,137,.14)}
+input:focus,select:focus,textarea:focus{border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(15,68,137,.14)}
 textarea{min-height:76px;resize:vertical}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:560px){.grid2{grid-template-columns:1fr}}
-.mal{border-color:#B4531F !important;background:#FBEDE4}
+.mal{border-color:var(--err) !important;background:#FBEDE4}
+.auto{background:var(--verde-bg) !important;border-color:#B5DDB0 !important}
 
-.btn{display:block;width:100%;padding:13px;border:0;border-radius:var(--r);
-  background:var(--navy);color:#fff;font-family:Roboto,sans-serif;font-weight:700;
-  font-size:16px;cursor:pointer}
-.btn:hover{background:var(--navy-2)}
-.btn:disabled{opacity:.5;cursor:default}
-.aviso{background:var(--warn-bg);border:1px solid #EADBB5;border-radius:var(--r);
-  padding:11px 13px;font-size:13.5px;margin-bottom:14px}
-.error{color:#B4531F;font-size:13.5px;margin-top:10px;min-height:18px}
+/* zona del CV */
+.drop{border:2px dashed var(--rule);border-radius:10px;padding:26px 18px;text-align:center;
+  cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
+.drop:hover,.drop.sobre{border-color:var(--navy-2);background:#F7F9FC}
+.drop.listo{border-style:solid;border-color:var(--verde-fg);background:var(--verde-bg)}
+.drop.mal{border-color:var(--err);background:#FBEDE4}
+.drop b{display:block;font-family:Roboto,sans-serif;font-size:16px;margin-bottom:3px}
+.drop span{font-size:13px;color:var(--muted)}
+.drop input{display:none}
+.estadoCV{font-size:13.5px;margin-top:10px;min-height:20px}
+.estadoCV.ok{color:var(--verde-fg)} .estadoCV.bad{color:var(--err)}
+.leyenda{display:none;background:var(--verde-bg);border:1px solid #B5DDB0;border-radius:var(--r);
+  padding:10px 13px;font-size:13.5px;margin-bottom:16px}
+
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:var(--r);background:var(--navy);
+  color:#fff;font-family:Roboto,sans-serif;font-weight:700;font-size:16px;cursor:pointer}
+.btn:hover{background:var(--navy-2)} .btn:disabled{opacity:.5;cursor:default}
+.error{color:var(--err);font-size:13.5px;margin-top:10px;min-height:18px}
 .nota{font-size:12.5px;color:var(--muted);margin-top:14px;text-align:center}
-
+#resto{display:none}
 #gracias{display:none;text-align:center;padding:44px 20px}
-#gracias .tick{width:56px;height:56px;border-radius:50%;background:var(--verde-bg);
-  color:var(--verde-fg);display:grid;place-items:center;margin:0 auto 16px;font-size:28px}
-#gracias h1{margin-bottom:8px}
+#gracias .tick{width:56px;height:56px;border-radius:50%;background:var(--verde-bg);color:var(--verde-fg);
+  display:grid;place-items:center;margin:0 auto 16px;font-size:28px}
 .cargando{color:var(--muted);text-align:center;padding:40px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);
+  border-top-color:var(--navy-2);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes g{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -87,71 +98,88 @@ textarea{min-height:76px;resize:vertical}
 
   <form id="form" style="display:none" novalidate>
     <h1>Postulate a esta búsqueda</h1>
-    <p class="lead">Completá tus datos y te contactamos si tu perfil encaja.
-      Tarda unos tres minutos.</p>
+    <p class="lead">Subí tu CV y completamos lo que podamos por vos.
+      Después solo revisás y agregás lo que falte.</p>
 
     <div class="puesto" id="puesto"></div>
 
     <div class="card">
-      <h3>Tus datos</h3>
-      <div class="field"><label for="nombre">Nombre y apellido</label>
-        <input id="nombre" autocomplete="name"></div>
-      <div class="grid2">
-        <div class="field"><label for="email">Correo</label>
-          <input id="email" type="email" autocomplete="email"></div>
-        <div class="field"><label for="telefono">Teléfono <span class="op">(opcional)</span></label>
-          <input id="telefono" type="tel" autocomplete="tel" placeholder="+54 9 11 ..."></div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label for="pais">País</label>
-          <input id="pais" placeholder="Argentina, México, Colombia..."></div>
-        <div class="field"><label for="linkedin">LinkedIn <span class="op">(opcional)</span></label>
-          <input id="linkedin" placeholder="linkedin.com/in/..."></div>
-      </div>
+      <h3>1 · Tu CV <span style="color:var(--err)">*</span></h3>
+      <label class="drop" id="drop">
+        <input id="cv" type="file" accept=".pdf,.doc,.docx">
+        <b id="dropTit">Arrastrá tu CV acá o tocá para elegirlo</b>
+        <span id="dropSub">PDF o Word, hasta 10 MB</span>
+      </label>
+      <div class="estadoCV" id="estadoCV"></div>
     </div>
 
-    <div class="card">
-      <h3>Tu experiencia</h3>
-      <div class="grid2">
-        <div class="field"><label for="anios">Años de experiencia total</label>
+    <div id="resto">
+      <div class="leyenda" id="leyenda">
+        Completamos en verde lo que leímos de tu CV. Revisalo y corregí lo que haga falta.
+      </div>
+
+      <div class="card">
+        <h3>2 · Tus datos</h3>
+        <div class="field"><label for="nombre">Nombre y apellido <span class="ob">*</span></label>
+          <input id="nombre" autocomplete="name"></div>
+        <div class="grid2">
+          <div class="field"><label for="email">Correo <span class="ob">*</span></label>
+            <input id="email" type="email" autocomplete="email"></div>
+          <div class="field"><label for="telefono">Teléfono <span class="op">(opcional)</span></label>
+            <input id="telefono" type="tel" autocomplete="tel" placeholder="+54 9 11 ..."></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="pais">País <span class="ob">*</span></label>
+            <input id="pais" placeholder="Argentina, México, Colombia..."></div>
+          <div class="field"><label for="linkedin">LinkedIn <span class="op">(opcional)</span></label>
+            <input id="linkedin" placeholder="linkedin.com/in/..."></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>3 · Tu experiencia</h3>
+        <div class="field"><label for="anios">Años de experiencia total <span class="ob">*</span></label>
           <input id="anios" type="number" min="0" max="60" step="1"></div>
-        <div class="field"><label for="disponible">Podrías arrancar desde</label>
-          <input id="disponible" type="date"></div>
+        <div class="field">
+          <label>Tus tecnologías</label>
+          <div class="skills" id="misSkills" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+          <div class="hint">Tocá para marcar o desmarcar. Las del puesto aparecen primero.</div>
+          <input id="otroSkill" placeholder="Otra tecnología y Enter" style="margin-top:8px">
+        </div>
       </div>
-      <div class="field">
-        <label>Tus tecnologías</label>
-        <div class="skills" id="misSkills"></div>
-        <div class="hint">Tocá las que manejás. Si te falta alguna, agregala abajo.</div>
-        <input id="otroSkill" placeholder="Otra tecnología y Enter" style="margin-top:8px">
+
+      <div class="card" id="cardPreguntas" style="display:none">
+        <h3>4 · Preguntas sobre el rol <span style="color:var(--err)">*</span></h3>
+        <div id="preguntas"></div>
       </div>
-      <div class="field"><label for="dispEntrevista">¿Cuándo podés tener una entrevista?</label>
-        <input id="dispEntrevista" placeholder="Ej: martes y jueves después de las 18, o cualquier día por la mañana">
-        <div class="hint">Días y horarios que te vienen bien, en tu huso horario.</div></div>
-      <div class="field"><label for="cv">Tu CV <span class="op">(PDF o Word, hasta 10 MB)</span></label>
-        <input id="cv" type="file" accept=".pdf,.doc,.docx"></div>
-    </div>
 
-    <div class="card" id="cardPreguntas" style="display:none">
-      <h3>Unas preguntas sobre el rol</h3>
-      <div id="preguntas"></div>
-    </div>
-
-    <div class="card">
-      <h3>Tu expectativa</h3>
-      <div class="grid2">
-        <div class="field"><label for="rateHora">USD por hora</label>
-          <input id="rateHora" type="number" step="0.5" placeholder="por hora"></div>
-        <div class="field"><label for="rateMes">USD por mes</label>
-          <input id="rateMes" type="number" step="10" placeholder="por mes"></div>
+      <div class="card">
+        <h3>Disponibilidad</h3>
+        <div class="grid2">
+          <div class="field"><label for="disponible">Podrías arrancar desde <span class="ob">*</span></label>
+            <input id="disponible" type="date"></div>
+          <div class="field"><label for="dispEntrevista">Para entrevistas <span class="ob">*</span></label>
+            <input id="dispEntrevista" placeholder="Ej: mar y jue después de las 18"></div>
+        </div>
+        <div class="hint">Días y horarios que te vienen bien, en tu huso horario.</div>
       </div>
-      <div class="hint">Completá cualquiera de los dos y calculamos el otro.
-        Tomamos 160 horas por mes. Es una referencia, no un compromiso.</div>
-    </div>
 
-    <div class="error" id="err"></div>
-    <button class="btn" type="submit" id="btnEnviar">Enviar mi postulación</button>
-    <p class="nota">Tus datos quedan en la base de FactIQ para esta y futuras búsquedas.
-      Si querés que los borremos, escribinos a info@fact-iq.com.</p>
+      <div class="card">
+        <h3>Tu expectativa</h3>
+        <div class="grid2">
+          <div class="field"><label for="rateHora">USD por hora <span class="ob">*</span></label>
+            <input id="rateHora" type="number" step="0.5" placeholder="por hora"></div>
+          <div class="field"><label for="rateMes">USD por mes</label>
+            <input id="rateMes" type="number" step="10" placeholder="por mes"></div>
+        </div>
+        <div class="hint">Completá cualquiera de los dos y calculamos el otro. Tomamos 160 horas por mes.</div>
+      </div>
+
+      <div class="error" id="err"></div>
+      <button class="btn" type="submit" id="btnEnviar">Enviar mi postulación</button>
+      <p class="nota">Tus datos quedan en la base de FactIQ para esta y futuras búsquedas.
+        Si querés que los borremos, escribinos a info@fact-iq.com.</p>
+    </div>
   </form>
 
   <div id="gracias">
@@ -171,11 +199,12 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 const $ = s => document.querySelector(s);
 
 const CODE = new URLSearchParams(location.search).get("b") || "";
-let BID = null, SKILLS = [], ELEGIDOS = new Set();
+let BID = null, SKILLS = [], ELEGIDOS = new Set(), CV_PATH = null, SUBIENDO = false;
 
 function esc(s){ return String(s ?? "").replace(/[&<>"]/g,
   m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
 
+/* ---------- carga inicial ---------- */
 async function arrancar(){
   if (CODE){
     const { data } = await sb.rpc("bid_publico", { p_code: CODE });
@@ -188,15 +217,13 @@ async function arrancar(){
     SKILLS = (BID.skills || []).slice(0, 18);
     $("#puesto").innerHTML = `
       <h2>${esc(BID.titulo || "Búsqueda abierta")}</h2>
-      <div class="det">
-        ${BID.seniority ? esc(BID.seniority)+" · " : ""}
-        ${BID.duracion ? esc(BID.duracion)+" meses · " : ""}remoto</div>
+      <div class="det">${BID.seniority ? esc(BID.seniority)+" · " : ""}${BID.duracion ? esc(BID.duracion)+" meses · " : ""}remoto</div>
       ${SKILLS.length ? `<div class="skills">${SKILLS.map(s=>`<span class="sk">${esc(s)}</span>`).join("")}</div>` : ""}`;
     const preg = BID.preguntas || [];
     if (preg.length){
       $("#cardPreguntas").style.display = "block";
       $("#preguntas").innerHTML = preg.map((q,i)=>`
-        <div class="field"><label for="p${i}">${esc(q)}</label>
+        <div class="field"><label for="p${i}">${esc(q)} <span class="ob">*</span></label>
           <textarea id="p${i}" data-preg="${esc(q)}"></textarea></div>`).join("");
     }
   } else {
@@ -206,18 +233,104 @@ async function arrancar(){
   pintarSkills();
 }
 
+/* ---------- CV: subir y leer ---------- */
+async function subirCV(f){
+  const drop = $("#drop"), est = $("#estadoCV");
+  drop.classList.remove("mal","listo");
+  if (!f) return;
+  const ok = /\.(pdf|docx?)$/i.test(f.name);
+  if (!ok){ est.className = "estadoCV bad"; est.textContent = "Solo aceptamos PDF o Word."; drop.classList.add("mal"); return; }
+  if (f.size > 10*1024*1024){ est.className = "estadoCV bad"; est.textContent = "El archivo pesa más de 10 MB."; drop.classList.add("mal"); return; }
+
+  SUBIENDO = true; CV_PATH = null;
+  $("#dropTit").textContent = f.name;
+  $("#dropSub").textContent = "";
+  est.className = "estadoCV";
+  est.innerHTML = `<span class="spin"></span>Leyendo tu CV... tarda unos segundos`;
+
+  try{
+    const fd = new FormData();
+    fd.append("cv", f); fd.append("bid", CODE || "espontanea");
+    const r = await fetch(`${SUPA_URL}/functions/v1/subir-cv`, { method:"POST", body: fd });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.detalle || j.error || "no se pudo subir");
+    CV_PATH = j.cv_path;
+    drop.classList.add("listo");
+    $("#dropSub").textContent = "Tocá para cambiarlo";
+    autocompletar(j.datos);
+  }catch(e){
+    est.className = "estadoCV bad";
+    est.textContent = "No pudimos subir tu CV: " + e.message + ". Probá de nuevo.";
+    drop.classList.add("mal");
+    $("#dropTit").textContent = "Arrastrá tu CV acá o tocá para elegirlo";
+    $("#dropSub").textContent = "PDF o Word, hasta 10 MB";
+  }finally{
+    SUBIENDO = false;
+    $("#resto").style.display = "block";
+  }
+}
+
+function autocompletar(d){
+  const est = $("#estadoCV");
+  if (!d){
+    est.className = "estadoCV ok";
+    est.textContent = "CV cargado. No pudimos leer los datos automáticamente, completalos abajo.";
+    return;
+  }
+  let n = 0;
+  const poner = (sel, val) => {
+    const el = $(sel);
+    if (val === null || val === undefined || val === "" || el.value) return;
+    el.value = val; el.classList.add("auto"); n++;
+  };
+  poner("#nombre", d.nombre);
+  poner("#email", d.email);
+  poner("#telefono", d.telefono);
+  poner("#pais", d.pais);
+  poner("#linkedin", d.linkedin);
+  poner("#anios", d.anios_experiencia);
+
+  // tecnologias del CV: se marcan solas, primero las que pide el puesto
+  const delCV = (d.tecnologias || []).filter(Boolean);
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
+  delCV.forEach(t=>{
+    const match = SKILLS.find(s => norm(s) === norm(t));
+    if (match) ELEGIDOS.add(match);
+    else { SKILLS.push(t); ELEGIDOS.add(t); }
+  });
+  if (delCV.length) n++;
+  pintarSkills();
+
+  est.className = "estadoCV ok";
+  est.textContent = n ? `CV cargado. Completamos ${n} datos a partir de tu CV.` : "CV cargado.";
+  if (n) $("#leyenda").style.display = "block";
+}
+
+$("#cv").addEventListener("change", e => subirCV(e.target.files[0]));
+["dragenter","dragover"].forEach(ev => $("#drop").addEventListener(ev, e=>{
+  e.preventDefault(); $("#drop").classList.add("sobre"); }));
+["dragleave","drop"].forEach(ev => $("#drop").addEventListener(ev, e=>{
+  e.preventDefault(); $("#drop").classList.remove("sobre"); }));
+$("#drop").addEventListener("drop", e => subirCV(e.dataTransfer.files[0]));
+
+// si corrige un campo autocompletado, deja de marcarse en verde
+document.addEventListener("input", e=>{
+  if (e.target.classList.contains("auto")) e.target.classList.remove("auto");
+  if (e.target.classList.contains("mal") && e.target.value.trim()) e.target.classList.remove("mal");
+});
+
+/* ---------- tecnologias ---------- */
 function pintarSkills(){
   const cont = $("#misSkills");
   if (!SKILLS.length){ cont.innerHTML = `<span class="hint">Agregá las tuyas abajo.</span>`; return; }
-  cont.innerHTML = SKILLS.map((s,i)=>{
+  cont.innerHTML = SKILLS.map(s=>{
     const on = ELEGIDOS.has(s);
     return `<button type="button" class="sk" data-s="${esc(s)}"
-      style="cursor:pointer;border:1px solid ${on?'var(--verde-fg)':'var(--rule)'};
+      style="cursor:pointer;border-color:${on?'var(--verde-fg)':'var(--rule)'};
              background:${on?'var(--verde-bg)':'var(--surface-2)'};
              color:${on?'var(--verde-fg)':'inherit'}">${on?"✓ ":""}${esc(s)}</button>`;
   }).join("");
 }
-
 $("#misSkills").addEventListener("click", e=>{
   const b = e.target.closest("button[data-s]"); if(!b) return;
   const s = b.dataset.s;
@@ -231,7 +344,7 @@ $("#otroSkill").addEventListener("keydown", e=>{
   if (v && !SKILLS.includes(v)){ SKILLS.push(v); ELEGIDOS.add(v); e.target.value=""; pintarSkills(); }
 });
 
-// rate: hora <-> mes
+/* ---------- rate hora <-> mes ---------- */
 let editando = null;
 $("#rateHora").addEventListener("input", ()=>{
   if (editando==="mes") return; editando="hora";
@@ -241,44 +354,51 @@ $("#rateHora").addEventListener("input", ()=>{
 $("#rateMes").addEventListener("input", ()=>{
   if (editando==="hora") return; editando="mes";
   $("#rateHora").value = $("#rateMes").value ? (Number($("#rateMes").value)/HS_MES).toFixed(2) : "";
+  if ($("#rateHora").value) $("#rateHora").classList.remove("mal");
   editando=null;
 });
 
+/* ---------- envio ---------- */
 $("#form").addEventListener("submit", async e=>{
   e.preventDefault();
   $("#err").textContent = "";
-  const obligatorios = [["#nombre","nombre"],["#email","correo"],["#pais","país"],["#anios","años de experiencia"]];
-  let falta = null;
+
+  if (SUBIENDO){ $("#err").textContent = "Esperá a que termine de cargar tu CV."; return; }
+  if (!CV_PATH){
+    $("#drop").classList.add("mal");
+    $("#err").textContent = "Necesitamos tu CV para postularte.";
+    $("#drop").scrollIntoView({behavior:"smooth", block:"center"});
+    return;
+  }
+
+  const obligatorios = [
+    ["#nombre","nombre"], ["#email","correo"], ["#pais","país"],
+    ["#anios","años de experiencia"], ["#disponible","fecha de inicio"],
+    ["#dispEntrevista","disponibilidad para entrevistas"], ["#rateHora","expectativa de rate"]
+  ];
+  document.querySelectorAll("[data-preg]").forEach((t,i)=> obligatorios.push([`#p${i}`, "respuesta a las preguntas del rol"]));
+
+  let primero = null;
   obligatorios.forEach(([sel,nom])=>{
     const el = $(sel), vacio = !el.value.trim();
     el.classList.toggle("mal", vacio);
-    if (vacio && !falta) falta = nom;
+    if (vacio && !primero) primero = [sel,nom];
   });
-  if (falta){ $("#err").textContent = `Nos falta tu ${falta}.`; $(obligatorios.find(o=>o[1]===falta)[0]).focus(); return; }
+  if (primero){
+    $("#err").textContent = `Nos falta: ${primero[1]}.`;
+    $(primero[0]).focus();
+    $(primero[0]).scrollIntoView({behavior:"smooth", block:"center"});
+    return;
+  }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($("#email").value.trim())){
     $("#email").classList.add("mal"); $("#err").textContent = "Revisá el correo, no parece válido."; return;
   }
 
   const btn = $("#btnEnviar");
   btn.disabled = true; btn.textContent = "Enviando...";
-
   try{
-    // CV primero, si lo adjuntó
-    let cvPath = null;
-    const f = $("#cv").files[0];
-    if (f){
-      if (f.size > 10*1024*1024) throw new Error("El CV pesa más de 10 MB.");
-      const ext = (f.name.split(".").pop()||"pdf").toLowerCase();
-      cvPath = `${CODE||"espontanea"}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error } = await sb.storage.from("cvs").upload(cvPath, f, { contentType: f.type });
-      if (error) cvPath = null;   // que un fallo del archivo no tumbe la postulación
-    }
-
     const respuestas = {};
-    document.querySelectorAll("[data-preg]").forEach(t=>{
-      if (t.value.trim()) respuestas[t.dataset.preg] = t.value.trim();
-    });
-
+    document.querySelectorAll("[data-preg]").forEach(t=>{ respuestas[t.dataset.preg] = t.value.trim(); });
     const { error } = await sb.rpc("postularse", { p: {
       bid_code: CODE,
       nombre: $("#nombre").value.trim(),
@@ -292,16 +412,14 @@ $("#form").addEventListener("submit", async e=>{
       disp_entrevista: $("#dispEntrevista").value.trim(),
       skills: [...ELEGIDOS],
       respuestas,
-      cv_path: cvPath
+      cv_path: CV_PATH
     }});
     if (error) throw new Error(error.message);
-
     $("#form").style.display = "none";
     $("#gracias").style.display = "block";
     window.scrollTo({top:0, behavior:"smooth"});
-  }catch(e){
-    $("#err").textContent = "No pudimos enviar tu postulación: " + e.message +
-      ". Probá de nuevo o escribinos a info@fact-iq.com.";
+  }catch(err){
+    $("#err").textContent = "No pudimos enviar tu postulación: " + err.message + ". Probá de nuevo o escribinos a info@fact-iq.com.";
     btn.disabled = false; btn.textContent = "Enviar mi postulación";
   }
 });
