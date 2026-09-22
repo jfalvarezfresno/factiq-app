@@ -329,17 +329,19 @@ tbody tr:hover{background:var(--surface-2)}
     <!-- ---------- VISTA POSTULACIONES ---------- -->
     <section id="vistaPost" class="hide">
       <div class="card">
-        <h2>Postulaciones recibidas <span class="sub" id="contPost"></span></h2>
+        <h2>Proyectos y postulaciones <span class="sub" id="contPost"></span></h2>
         <div class="filtros">
-          <div class="field"><label>Búsqueda</label>
-            <input id="pf_bid" type="text" placeholder="X47, o vacío para todas"></div>
+          <div class="field" style="min-width:220px"><label>Buscar postulante</label>
+            <input id="pf_q" type="text" placeholder="nombre, mail, país, tecnología"></div>
           <div class="field"><label>Estado</label>
             <select id="pf_estado"><option value="">Todos</option>
               <option value="NUEVA">Nuevas</option><option value="REVISADA">Revisadas</option>
               <option value="DESCARTADA">Descartadas</option></select></div>
+          <div class="field"><label>País</label><input id="pf_pais" type="text" placeholder="cualquiera"></div>
+          <div class="field"><label>Rate máx USD/h</label><input id="pf_rate" type="number" step="0.5"></div>
           <button class="btn ghost sm" id="btnRecargarPost">Aplicar</button>
         </div>
-        <div id="listaPost"></div>
+        <div id="listaProyectos"></div>
       </div>
     </section>
 
@@ -419,7 +421,7 @@ tbody tr:hover{background:var(--surface-2)}
 <script>
 const SUPA_URL = "https://adxuqnccpjmsbkjaxrbb.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeHVxbmNjcGptc2JramF4cmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNDMzODYsImV4cCI6MjEwNDgxOTM4Nn0.WS0JeKwhLTuXoy7BFP7T2CZA1nHpXkjXPCytakQpVNc";
-const MAIL_4LATAM = "rocio@4latam.com, marcelo@4latam.com";
+const MAIL_4LATAM = "marceloeduardo.arrabal@4latam.com,rocio.romero@partner.4latam.com";
 const MAIL_CC = "info@fact-iq.com,a.stiletano@fact-iq.com";
 const HS_MES = 160;
 const MARGEN_FIJO = 1000;      // USD por mes
@@ -739,6 +741,43 @@ function anonimo(nombre){
 }
 
 async function cvAnonimo(analystId, bidCode){
+  // Genera el Word real, con la plantilla de FactIQ, y lo descarga
+  const aviso = document.createElement("div");
+  aviso.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99;background:#042552;color:#fff;"
+    + "padding:13px 17px;border-radius:8px;font-family:Roboto,sans-serif;font-size:14px;"
+    + "box-shadow:0 6px 20px rgba(4,37,82,.25);border-left:4px solid #05FF00";
+  aviso.textContent = "Armando el CV anonimizado... tarda unos 30 segundos";
+  document.body.appendChild(aviso);
+  try{
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SUPA_URL}/functions/v1/cv-word`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json",
+                "Authorization":`Bearer ${ses.session.access_token}` },
+      body: JSON.stringify({ analyst_id: analystId })
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.detalle || j.error);
+    const bin = atob(j.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = j.archivo || "CV.docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    aviso.textContent = `Listo: ${j.archivo} (fuente: ${j.origen})`;
+    setTimeout(()=>aviso.remove(), 5000);
+  }catch(e){
+    aviso.style.borderLeftColor = "#B4531F";
+    aviso.textContent = "No se pudo armar el CV: " + e.message;
+    setTimeout(()=>aviso.remove(), 8000);
+  }
+}
+
+async function cvAnonimoHtmlViejo(analystId, bidCode){
   const w = window.open("", "_blank");
   if (!w){ alert("El navegador bloqueó la ventana. Permití las ventanas emergentes."); return; }
   w.document.write(`<!doctype html><meta charset="utf-8">
@@ -905,7 +944,7 @@ async function contarNuevas(){
   if (b) b.innerHTML = count ? `<span class="tag" style="margin-left:4px">${count}</span>` : "";
 }
 
-async function cargarPostulaciones(){
+async function cargarPostulacionesViejo(){
   const cont = $("#listaPost");
   cont.innerHTML = `<div class="cargando">Cargando...</div>`;
   let q = sb.from("v_postulaciones").select("*").limit(200);
@@ -967,6 +1006,193 @@ async function cargarPostulaciones(){
   contarNuevas();
 }
 
+/* ============ proyectos ============ */
+let PROY_ABIERTO = null;      // codigo del proyecto desplegado
+let PROY_SOLAPA  = "post";    // post | env
+
+function fichaPostulacion(p){
+  const resp = p.respuestas && Object.keys(p.respuestas).filter(k=>!k.startsWith("_")).length
+    ? Object.entries(p.respuestas).filter(([k])=>!k.startsWith("_")).map(([k,v])=>
+        `<div style="margin-top:6px"><b style="font-size:12.5px">${esc(k)}</b>
+         <div style="font-size:13px;color:var(--ink-2)">${esc(v)}</div></div>`).join("")
+    : "";
+  const fecha = new Date(p.creado).toLocaleDateString("es-AR",{day:"numeric",month:"short"});
+  const leido = p.respuestas && p.respuestas._cv_procesado;
+  return `
+  <div class="rowcard" style="grid-template-columns:1fr;cursor:default;
+       border-left:4px solid ${EST_COLOR[p.estado]||"var(--rule)"}">
+    <div>
+      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+        <span class="nombre">${esc(p.nombre)}</span>
+        <span class="cov">${fecha}</span>
+        ${leido?`<span class="cov" style="color:var(--verde-fg)">CV leído</span>`:""}
+        <span class="cov" style="margin-left:auto">${esc(p.estado)}</span>
+      </div>
+      <div class="meta">${esc(p.pais||"—")} · ${p.anios_exp??"—"} años ·
+        ${p.rate_hora_usd?`USD ${p.rate_hora_usd}/h · USD ${Number(p.rate_mes).toLocaleString("es-AR")}/mes`:"sin rate"}</div>
+      <div class="meta"><a href="mailto:${esc(p.email)}">${esc(p.email)}</a>
+        ${p.telefono?" · "+esc(p.telefono):""}
+        ${p.linkedin?` · <a href="https://${esc(p.linkedin.replace(/^https?:\/\//,""))}" target="_blank" rel="noopener">LinkedIn</a>`:""}</div>
+      <div class="meta">
+        ${p.disp_entrevista?`<b>Entrevistas:</b> ${esc(p.disp_entrevista)}`:""}
+        ${p.disponible_desde?` · <b>Arranca:</b> ${esc(p.disponible_desde)}`:""}</div>
+      ${resp}
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${p.cv_path?`<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
+                   :`<span class="sincontacto" style="align-self:center">sin CV</span>`}
+        ${p.analyst_id?`<button class="btn ghost sm" data-cvanon="${esc(p.analyst_id)}" data-bid="${esc(p.bid_code||"")}">CV anonimizado</button>`:""}
+        ${(ROL==="ADMIN"&&p.analyst_id)?`<button class="btn sm" data-prop="${esc(p.id)}">Contactar con propuesta</button>`:""}
+        <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Revisada</button>
+        <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
+        ${p.ya_enviado?`<span class="enviado" style="align-self:center">ya enviado</span>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function fichaEnvio(s){
+  return `
+  <div class="rowcard" style="grid-template-columns:1fr auto;cursor:default;
+       border-left:4px solid ${RES_COLOR[s.resultado]||"var(--rule)"}">
+    <div>
+      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+        <span class="nombre">${esc(s.analista)}</span>
+        <span class="cov">${esc(s.pais||"—")}</span>
+        ${s.resultado?`<span class="cov"><b>${s.resultado==="WON"?"ENTRÓ":"NO ENTRÓ"}</b>${s.motivo?" · "+esc(s.motivo):""}</span>`:""}
+      </div>
+      <div class="meta tabular">Costo USD ${Number(s.costo_mes||0).toLocaleString("es-AR")}/mes ·
+        Precio USD ${Number(s.precio_mes||0).toLocaleString("es-AR")}/mes ·
+        <b>Ganancia USD ${Number(s.ganancia_mes||0).toLocaleString("es-AR")}/mes</b></div>
+      <div class="meta">${s.disp_entrevista?`<b>Entrevistas:</b> ${esc(s.disp_entrevista)}`:""}
+        ${s.disp_inicio?` · <b>Arranca:</b> ${esc(s.disp_inicio)}`:""}</div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${!s.resultado
+          ? `<button class="btn sm" data-res="WON" data-env="${esc(s.envio_id)}">Entró</button>
+             <button class="btn ghost sm" data-res="LOST" data-env="${esc(s.envio_id)}">No entró</button>`
+          : `<button class="btn ghost sm" data-res="" data-env="${esc(s.envio_id)}">Deshacer</button>`}
+        <button class="btn ghost sm" data-cvanon="${esc(s.analyst_id)}" data-bid="${esc(s.codigo)}">CV anonimizado</button>
+      </div>
+    </div>
+    <div class="score"><b class="tabular">${s.margen_pct??"—"}</b><span>% margen</span></div>
+  </div>`;
+}
+
+async function cargarPostulaciones(){
+  const cont = $("#listaProyectos");
+  cont.innerHTML = `<div class="cargando">Cargando proyectos...</div>`;
+  const [{data:proy, error}, {data:posts}, {data:envs}] = await Promise.all([
+    sb.from("v_proyectos").select("*").limit(100),
+    sb.from("v_postulaciones").select("*").limit(500),
+    ROL==="ADMIN" ? sb.from("v_envios").select("*").limit(500) : Promise.resolve({data:[]})
+  ]);
+  if (error){ cont.innerHTML = `<div class="vacio">${esc(error.message)}</div>`; return; }
+
+  // filtros sobre los postulantes
+  const q = $("#pf_q").value.trim().toLowerCase();
+  const est = $("#pf_estado").value, pais = $("#pf_pais").value.trim().toLowerCase();
+  const rmax = $("#pf_rate").value ? Number($("#pf_rate").value) : null;
+  const pasa = p => (!est || p.estado===est)
+    && (!pais || (p.pais||"").toLowerCase().includes(pais))
+    && (rmax===null || (p.rate_hora_usd && Number(p.rate_hora_usd) <= rmax))
+    && (!q || JSON.stringify(p).toLowerCase().includes(q));
+  const hayFiltro = q || est || pais || rmax!==null;
+
+  const porProy = {};
+  (posts||[]).filter(pasa).forEach(p=>{ (porProy[p.bid_code||"—"] ??= []).push(p); });
+  const envPorProy = {};
+  (envs||[]).forEach(s=>{ (envPorProy[s.codigo] ??= []).push(s); });
+
+  let lista = (proy||[]);
+  if (hayFiltro) lista = lista.filter(pr => (porProy[pr.codigo]||[]).length);
+  $("#contPost").textContent = `· ${lista.length} proyectos`;
+
+  if (!lista.length){
+    cont.innerHTML = `<div class="vacio">${hayFiltro?"Ningún postulante cumple esos filtros.":"Todavía no hay proyectos. Analizá un JD y generá el post de LinkedIn para crear uno."}</div>`;
+    return;
+  }
+
+  cont.innerHTML = lista.map(pr=>{
+    const ps = porProy[pr.codigo] || [];
+    const es = envPorProy[pr.codigo] || [];
+    const abierto = PROY_ABIERTO === pr.codigo;
+    const falt = pr.faltantes || [];
+    const link = `${URL_FORM}?b=${pr.codigo}`;
+    return `
+    <div class="proy ${abierto?"abierto":""}" style="border:1px solid var(--rule);border-radius:10px;
+         margin-bottom:10px;background:var(--card);overflow:hidden">
+      <div data-proy="${esc(pr.codigo)}" style="display:flex;align-items:center;gap:12px;
+           padding:13px 15px;cursor:pointer;${abierto?"background:var(--surface-2)":""}">
+        <span class="tag" style="font-size:12px;padding:3px 9px">${esc(pr.codigo)}</span>
+        <div style="flex:1;min-width:0">
+          <div class="nombre" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pr.titulo||"Sin título")}</div>
+          <div class="meta">${pr.postulantes} postulantes${pr.nuevas?` · <b style="color:var(--verde-fg)">${pr.nuevas} nuevas</b>`:""}
+            ${ROL==="ADMIN"?` · ${pr.enviados} enviados`:""}${pr.ganados?` · ${pr.ganados} ganados`:""}
+            ${pr.budget_mes?` · budget USD ${Number(pr.budget_mes).toLocaleString("es-AR")}/mes`:""}</div>
+        </div>
+        ${falt.length?`<span class="sincontacto">faltan ${falt.length} datos</span>`:""}
+        <span style="color:var(--muted);font-size:18px">${abierto?"▾":"▸"}</span>
+      </div>
+      ${abierto?`
+      <div style="padding:14px 15px;border-top:1px solid var(--rule)">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <input readonly value="${esc(link)}" style="flex:1;min-width:230px;font-family:'Roboto Mono',monospace;font-size:12px">
+          <button class="btn ghost sm" data-copiar="${esc(link)}">Copiar link</button>
+          <button class="btn ghost sm" data-post="${esc(pr.codigo)}">Generar post LinkedIn</button>
+          <button class="btn ${falt.length?"":"ghost"} sm" data-consulta="${esc(pr.codigo)}">Consultar a 4Latam</button>
+        </div>
+        ${falt.length?`<div class="aviso" style="margin-bottom:12px"><b>Sin confirmar en el JD:</b> ${esc(falt.join(", "))}</div>`:""}
+        ${pr.skills?`<div class="meta" style="margin-bottom:12px"><b>Skills:</b> ${esc(pr.skills)}</div>`:""}
+        ${ROL==="ADMIN"?`
+        <div style="display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--rule)">
+          <button class="solapa" data-solapa="post" style="border:0;background:none;padding:8px 12px;cursor:pointer;
+            font-weight:700;border-bottom:2px solid ${PROY_SOLAPA==="post"?"var(--navy)":"transparent"};
+            color:${PROY_SOLAPA==="post"?"var(--ink)":"var(--muted)"}">Postulantes (${ps.length})</button>
+          <button class="solapa" data-solapa="env" style="border:0;background:none;padding:8px 12px;cursor:pointer;
+            font-weight:700;border-bottom:2px solid ${PROY_SOLAPA==="env"?"var(--navy)":"transparent"};
+            color:${PROY_SOLAPA==="env"?"var(--ink)":"var(--muted)"}">Enviados a 4Latam (${es.length})</button>
+        </div>`:""}
+        ${(ROL!=="ADMIN" || PROY_SOLAPA==="post")
+          ? (ps.length ? ps.map(fichaPostulacion).join("") : `<div class="vacio">Todavía no hay postulantes para este proyecto.</div>`)
+          : (es.length ? es.map(fichaEnvio).join("") : `<div class="vacio">Todavía no enviaste perfiles de este proyecto. Hacelo desde "Contactar con propuesta".</div>`)}
+      </div>`:""}
+    </div>`;
+  }).join("");
+  contarNuevas();
+}
+
+// consulta a 4Latam con lo que falta del JD
+async function consultar4Latam(codigo){
+  const { data: pr } = await sb.from("v_proyectos").select("*").eq("codigo", codigo).maybeSingle();
+  if (!pr) return;
+  const falt = pr.faltantes || [];
+  const ctx = `Rol: ${pr.titulo||"(sin título)"} (código ${pr.codigo}).
+Datos que faltan confirmar en el Job Description: ${falt.length?falt.join(", "):"ninguno puntual; pedir confirmación general del alcance y del SOW"}.`;
+  abrirModal("Consulta a 4Latam · " + pr.codigo, "Redactando...", "Redactando...", MAIL_4LATAM);
+  try{
+    const d = await llamarIA("pedido", ctx);
+    $("#modalAsunto").value = d.asunto || `Consulta sobre ${pr.titulo||pr.codigo}`;
+    $("#modalCuerpo").value = d.cuerpo || "";
+  }catch(e){
+    $("#modalAsunto").value = `Consulta sobre ${pr.titulo||pr.codigo}`;
+    $("#modalCuerpo").value = `Hola Marcelo, Rocío,\n\nPara avanzar con ${pr.titulo||pr.codigo} necesitamos confirmar: ${falt.join(", ")||"el alcance del SOW"}.\n\nGracias,\nEl equipo de FactIQ`;
+  }
+}
+
+// post de LinkedIn desde un proyecto ya guardado
+async function postDeProyecto(codigo){
+  const { data: pr } = await sb.from("v_proyectos").select("*").eq("codigo", codigo).maybeSingle();
+  if (!pr) return;
+  const link = `${URL_FORM}?b=${codigo}`;
+  const ctx = `Rol: ${pr.titulo}.\nSeniority: ${pr.seniority||"a definir"}.\nDuración: ${pr.meses||"a definir"} meses.
+Zona horaria: ${pr.zona_horaria||"LATAM"}.\nSkills: ${pr.skills}.\nLink de postulacion: ${link}`;
+  abrirModal("Publicación de LinkedIn · " + codigo, null, "Redactando...", "");
+  try{
+    const d = await llamarIA("post", ctx);
+    const txt = (d.post||"").replace("{LINK}", link);
+    $("#modalCuerpo").value = txt.includes(link) ? txt : `${txt}\n\nPostulate acá: ${link}`;
+  }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
+}
+
 async function verCV(ruta, nombre){
   const cont = $("#visorCuerpo");
   $("#visorTit").textContent = "CV de " + nombre;
@@ -995,7 +1221,41 @@ async function verCV(ruta, nombre){
   }
 }
 
-$("#listaPost").addEventListener("click", async e=>{
+$("#listaProyectos").addEventListener("click", async e=>{
+  // abrir / cerrar un proyecto
+  const cab = e.target.closest("[data-proy]");
+  if (cab){
+    PROY_ABIERTO = PROY_ABIERTO === cab.dataset.proy ? null : cab.dataset.proy;
+    PROY_SOLAPA = "post";
+    cargarPostulaciones(); return;
+  }
+  const sol = e.target.closest("button[data-solapa]");
+  if (sol){ PROY_SOLAPA = sol.dataset.solapa; cargarPostulaciones(); return; }
+
+  const cop = e.target.closest("button[data-copiar]");
+  if (cop){
+    await navigator.clipboard.writeText(cop.dataset.copiar);
+    cop.textContent = "Copiado"; setTimeout(()=>cop.textContent="Copiar link", 1400); return;
+  }
+  const bPost = e.target.closest("button[data-post]");
+  if (bPost){ postDeProyecto(bPost.dataset.post); return; }
+  const bCons = e.target.closest("button[data-consulta]");
+  if (bCons){ consultar4Latam(bCons.dataset.consulta); return; }
+
+  // resultado de un envio: entro / no entro
+  const bRes = e.target.closest("button[data-res]");
+  if (bRes){
+    let motivo = null;
+    if (bRes.dataset.res === "LOST"){
+      motivo = prompt("¿Por qué no entró? (precio, inglés, técnica, otro candidato...)");
+      if (motivo === null) return;
+    }
+    const { error } = await sb.rpc("marcar_resultado", {
+      p_envio: bRes.dataset.env, p_outcome: bRes.dataset.res || null, p_motivo: motivo });
+    if (error) alert("No se pudo guardar: " + error.message);
+    cargarPostulaciones(); return;
+  }
+
   const bCv = e.target.closest("button[data-cv]");
   if (bCv){ verCV(bCv.dataset.cv, bCv.dataset.nom || ""); return; }
   const bAnon = e.target.closest("button[data-cvanon]");
