@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<!-- version: 2026-09-22 01:02 -->
 <meta charset="utf-8">
 <!-- This site is hosted on Netlify. Anyone can build and deploy a site
      like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
@@ -816,7 +817,8 @@ async function cvAnonimoHtmlViejo(analystId, bidCode){
       <ul>${li(e.bullets)}</ul>
     </div>`).join("");
 
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+  const html = `<!DOCTYPE html><html lang="en"><head>
+<!-- version: 2026-09-22 01:02 --><meta charset="utf-8">
 <title>${esc(cv.titulo||"CV")}</title>
 <style>
 *{box-sizing:border-box}
@@ -878,7 +880,8 @@ async function cvAnonimoViejo(analystId, bidCode){
     (porCat[t.technologies.category||"Otros"] ??= []).push(t.technologies.name); });
 
   const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  const html = `<!DOCTYPE html><html lang="es"><head>
+<!-- version: 2026-09-22 01:02 --><meta charset="utf-8">
 <title>${esc(anonimo(a.full_name))} · FactIQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
