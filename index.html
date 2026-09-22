@@ -461,6 +461,7 @@ async function arrancar(user){
   $("#app").classList.remove("hide");
   cargarRed();
   contarNuevas();
+  cargarMsal().then(initMsal).catch(()=>{});
 }
 
 /* ============ analizar el JD ============ */
@@ -1378,28 +1379,39 @@ function cargarMsal(){
   });
 }
 
-async function tokenOutlook(){
-  await cargarMsal();
-  if (!MSAL_APP){
+let FORZAR_POPUP = false;
+
+function initMsal(){
+  if (!MSAL_APP && window.msal){
     MSAL_APP = new msal.PublicClientApplication({
       auth: { clientId: MS_CLIENT, authority: `https://login.microsoftonline.com/${MS_TENANT}`,
               redirectUri: location.origin + "/" },
       cache: { cacheLocation: "localStorage" }
     });
   }
+}
+
+// El navegador solo deja abrir la ventana de Microsoft si pasa pegada al clic:
+// por eso la libreria se precarga al entrar, y aca no hay ninguna espera antes del popup.
+async function tokenOutlook(){
+  if (!window.msal) await cargarMsal();
+  initMsal();
   const scopes = ["Mail.ReadWrite"];
   const cuenta = MSAL_APP.getAllAccounts()[0];
-  if (cuenta){
-    try { return (await MSAL_APP.acquireTokenSilent({ scopes, account: cuenta })).accessToken; }
-    catch(_) { /* sigue al popup */ }
+  if (!cuenta || FORZAR_POPUP){
+    FORZAR_POPUP = false;
+    return (await MSAL_APP.acquireTokenPopup({ scopes, prompt: "select_account" })).accessToken;
   }
-  return (await MSAL_APP.acquireTokenPopup({ scopes, prompt: "select_account" })).accessToken;
+  try { return (await MSAL_APP.acquireTokenSilent({ scopes, account: cuenta })).accessToken; }
+  catch(_){ FORZAR_POPUP = true; throw new Error("NECESITA_CLIC"); }
 }
 
 async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
   const txt0 = boton.textContent;
   boton.disabled = true;
   try{
+    boton.textContent = "Conectando con Outlook...";
+    const token = await tokenOutlook();   // primero, pegado al clic
     boton.textContent = "Armando el CV anonimizado...";
     const { data: ses } = await sb.auth.getSession();
     const r = await fetch(`${SUPA_URL}/functions/v1/cv-word`, {
@@ -1409,9 +1421,6 @@ async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
     });
     const cv = await r.json();
     if (!r.ok || cv.error) throw new Error("no se pudo armar el CV: " + (cv.detalle || cv.error));
-
-    boton.textContent = "Conectando con Outlook...";
-    const token = await tokenOutlook();
 
     boton.textContent = "Creando el borrador...";
     const lista = s => s.split(",").map(a => a.trim()).filter(Boolean)
@@ -1435,10 +1444,19 @@ async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
     const msg = await g.json();
     if (!g.ok) throw new Error(msg?.error?.message || "Outlook rechazó el borrador");
 
-    window.open(msg.webLink, "_blank", "noopener");
-    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Borrador creado en tu Outlook con ${esc(cv.archivo)} adjunto. Revisalo y envialo desde ahí.</span>`;
+    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Borrador creado en tu Outlook con ${esc(cv.archivo)} adjunto.</span>
+      <a class="btn sm" href="${esc(msg.webLink)}" target="_blank" rel="noopener"
+         style="display:inline-flex;margin-left:8px">Abrir borrador en Outlook</a>`;
   }catch(e){
+    if (String(e.message) === "NECESITA_CLIC"){
+      $("#modalErr").textContent = "Microsoft necesita que confirmes tu cuenta. Tocá el botón otra vez.";
+      return;
+    }
     const msgErr = String(e.message || e);
+    if (/popup|empty_window/i.test(msgErr)){
+      $("#modalErr").textContent = "El navegador bloqueó la ventana de Microsoft. Permití las ventanas emergentes para este sitio y tocá el botón otra vez.";
+      return;
+    }
     const pista = /AADSTS|consent|permission|redirect/i.test(msgErr)
       ? " Falta completar la configuración en Microsoft (permiso Mail.ReadWrite y la dirección de la app)." : "";
     $("#modalErr").textContent = "No se pudo crear el borrador: " + msgErr + "." + pista + " Podés usar \"Abrir sin adjunto\".";
