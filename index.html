@@ -1054,20 +1054,18 @@ function fichaPostulacion(p){
 
 // El boton cambia segun en que punto del circuito esta el candidato:
 // sin contactar -> contactado (esperando) -> acepto (postular) / rechazo
+// Los dos botones conviven siempre. La etapa se muestra como dato, no cambia los botones.
 function botonesContacto(p){
   const ofrecido = p.rate_ofrecido
-    ? `USD ${Number(p.rate_ofrecido).toFixed(2)}/h · ${Number(p.rate_ofrecido_mes).toLocaleString("es-AR")}/mes` : "";
-  if (!p.contacto)
-    return `<button class="btn sm" data-contactar="${esc(p.id)}">Contactar con propuesta</button>`;
-  if (p.contacto === "CONTACTADO")
-    return `<span class="cov" style="align-self:center">Propuesta enviada${ofrecido?" · "+ofrecido:""}</span>
-            <button class="btn sm" data-resp="ACEPTO" data-pid="${esc(p.id)}">Aceptó</button>
-            <button class="btn ghost sm" data-resp="RECHAZO" data-pid="${esc(p.id)}">Rechazó</button>`;
-  if (p.contacto === "ACEPTO")
-    return `<span class="enviado" style="align-self:center">Aceptó${ofrecido?" · "+ofrecido:""}</span>
-            ${ROL==="ADMIN" && !p.ya_enviado
-              ? `<button class="btn sm" data-prop="${esc(p.id)}">Postular a 4Latam</button>` : ""}`;
-  return `<span class="sincontacto" style="align-self:center">Rechazó la propuesta</span>`;
+    ? ` · USD ${Number(p.rate_ofrecido).toFixed(2)}/h (${Number(p.rate_ofrecido_mes).toLocaleString("es-AR")}/mes)` : "";
+  const etapa = { CONTACTADO: "Propuesta enviada", ACEPTO: "Aceptó", RECHAZO: "Rechazó" }[p.contacto];
+  return `
+    <button class="btn sm" data-contactar="${esc(p.id)}">Contactar con propuesta</button>
+    ${ROL==="ADMIN" ? `<button class="btn sm" data-prop="${esc(p.id)}">Postular</button>` : ""}
+    ${etapa ? `<span class="cov" style="align-self:center">${etapa}${ofrecido}</span>` : ""}
+    ${p.contacto==="CONTACTADO" ? `
+      <button class="btn ghost sm" data-resp="ACEPTO" data-pid="${esc(p.id)}">Aceptó</button>
+      <button class="btn ghost sm" data-resp="RECHAZO" data-pid="${esc(p.id)}">Rechazó</button>` : ""}`;
 }
 
 function fichaEnvio(s){
@@ -1434,7 +1432,7 @@ async function abrirPropuesta(postId){
 
   const costoH = Number(p.rate_ofrecido || p.rate_hora_usd || 0);
   const costoM = costoH * HS_MES;
-  if (!costoH){ alert("No hay rate acordado con este candidato. Contactalo con una propuesta primero."); return; }
+  if (!costoH){ alert("Este candidato no tiene rate cargado. Contactalo con una propuesta o cargá su pretensión."); return; }
 
   const opcA = costoM + MARGEN_FIJO;
   const opcB = costoM * (1 + MARGEN_PCT);
