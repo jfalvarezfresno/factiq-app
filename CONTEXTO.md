@@ -167,7 +167,6 @@ Todas usan el modelo `claude-haiku-4-5-20251001`. Costo aproximado: 1 centavo po
 
 ## 10. Pendiente
 
-- Terminar la mudanza del hosting y actualizar el link del formulario dentro de la app.
 - Dominio propio (`app.fact-iq.com`) para que los links no dependan del proveedor.
 - Traer las licitaciones abiertas desde el portal de 4Latam (el dueño ya dio el visto bueno;
   conviene pedirle un export o API en vez de scrapear).
