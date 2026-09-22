@@ -653,6 +653,8 @@ function abrirModal(tit, asunto, cuerpo, destino){
   // limpiar el estado que deja el modal de propuesta
   $("#modalCuerpo").style.display = "";
   const pb = $("#propBloque"); if (pb) pb.remove();
+  const ob = $("#ofertaBloque"); if (ob) ob.remove();
+  const op = $("#ofertaPie"); if (op) op.remove();
   $("#modalMailLocal").classList.remove("hide");
   $("#modalTit").textContent = tit;
   $("#modalAsuntoWrap").classList.toggle("hide", asunto===null);
@@ -1041,13 +1043,31 @@ function fichaPostulacion(p){
         ${p.cv_path?`<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
                    :`<span class="sincontacto" style="align-self:center">sin CV</span>`}
         ${p.analyst_id?`<button class="btn ghost sm" data-cvanon="${esc(p.analyst_id)}" data-bid="${esc(p.bid_code||"")}">CV anonimizado</button>`:""}
-        ${(ROL==="ADMIN"&&p.analyst_id)?`<button class="btn sm" data-prop="${esc(p.id)}">Contactar con propuesta</button>`:""}
+        ${p.analyst_id ? botonesContacto(p) : ""}
         <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Revisada</button>
         <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
         ${p.ya_enviado?`<span class="enviado" style="align-self:center">ya enviado</span>`:""}
       </div>
     </div>
   </div>`;
+}
+
+// El boton cambia segun en que punto del circuito esta el candidato:
+// sin contactar -> contactado (esperando) -> acepto (postular) / rechazo
+function botonesContacto(p){
+  const ofrecido = p.rate_ofrecido
+    ? `USD ${Number(p.rate_ofrecido).toFixed(2)}/h · ${Number(p.rate_ofrecido_mes).toLocaleString("es-AR")}/mes` : "";
+  if (!p.contacto)
+    return `<button class="btn sm" data-contactar="${esc(p.id)}">Contactar con propuesta</button>`;
+  if (p.contacto === "CONTACTADO")
+    return `<span class="cov" style="align-self:center">Propuesta enviada${ofrecido?" · "+ofrecido:""}</span>
+            <button class="btn sm" data-resp="ACEPTO" data-pid="${esc(p.id)}">Aceptó</button>
+            <button class="btn ghost sm" data-resp="RECHAZO" data-pid="${esc(p.id)}">Rechazó</button>`;
+  if (p.contacto === "ACEPTO")
+    return `<span class="enviado" style="align-self:center">Aceptó${ofrecido?" · "+ofrecido:""}</span>
+            ${ROL==="ADMIN" && !p.ya_enviado
+              ? `<button class="btn sm" data-prop="${esc(p.id)}">Postular a 4Latam</button>` : ""}`;
+  return `<span class="sincontacto" style="align-self:center">Rechazó la propuesta</span>`;
 }
 
 function fichaEnvio(s){
@@ -1269,6 +1289,16 @@ $("#listaProyectos").addEventListener("click", async e=>{
     await navigator.clipboard.writeText(cop.dataset.copiar);
     cop.textContent = "Copiado"; setTimeout(()=>cop.textContent="Copiar link", 1400); return;
   }
+  const bCont = e.target.closest("button[data-contactar]");
+  if (bCont){ contactarCandidato(bCont.dataset.contactar); return; }
+
+  const bResp = e.target.closest("button[data-resp]");
+  if (bResp){
+    const { error } = await sb.rpc("marcar_contacto", { p_post: bResp.dataset.pid, p_estado: bResp.dataset.resp });
+    if (error) alert("No se pudo guardar: " + error.message);
+    cargarPostulaciones(); return;
+  }
+
   const bBorrar = e.target.closest("button[data-borrar]");
   if (bBorrar){ eliminarProyecto(bBorrar.dataset.borrar); return; }
 
@@ -1310,6 +1340,88 @@ $("#listaProyectos").addEventListener("click", async e=>{
 
 $("#btnRecargarPost").onclick = cargarPostulaciones;
 
+/* ============ propuesta al candidato ============ */
+// Regla del instructivo de recruiting: ofrecer entre 200 y 500 USD/mes menos
+// de lo que pide el candidato. Por defecto, 300 menos. Siempre editable.
+const DESCUENTO_OFERTA_MES = 300;
+let OFERTA = null;
+
+async function contactarCandidato(postId){
+  const { data: p } = await sb.from("v_postulaciones").select("*").eq("id", postId).maybeSingle();
+  if (!p){ alert("No se encontró la postulación."); return; }
+  const { data: pr } = p.bid_code
+    ? await sb.from("v_proyectos").select("*").eq("codigo", p.bid_code).maybeSingle() : { data: null };
+
+  const pideH = Number(p.rate_hora_usd || 0);
+  const pideM = pideH * HS_MES;
+  const ofM = pideM ? Math.max(0, Math.round(pideM - DESCUENTO_OFERTA_MES)) : "";
+  OFERTA = { p, pr };
+
+  $("#modalTit").textContent = "Propuesta para " + p.nombre;
+  $("#modalAsuntoWrap").classList.remove("hide");
+  $("#modalLabel").textContent = "Mensaje al candidato";
+  $("#modalCuerpo").style.display = "";
+  $("#modalErr").textContent = "";
+  $("#modalMailto").classList.add("hide");
+  $("#modalMailLocal").classList.add("hide");
+  const pb = $("#propBloque"); if (pb) pb.remove();
+
+  let blq = $("#ofertaBloque");
+  if (!blq){
+    blq = document.createElement("div"); blq.id = "ofertaBloque";
+    $("#modalAsuntoWrap").parentElement.insertBefore(blq, $("#modalAsuntoWrap"));
+  }
+  blq.innerHTML = `
+    <div class="det" style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+      ${pideH ? `Pidió USD ${pideH.toFixed(2)}/h · USD ${Math.round(pideM).toLocaleString("es-AR")}/mes.
+      Sugerimos ofrecerle ${DESCUENTO_OFERTA_MES} USD/mes menos.` : "No declaró pretensión: completá el rate a mano."}
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Le ofrecemos USD/hora</label>
+        <input id="ofH" type="number" step="0.25" value="${ofM ? (ofM/HS_MES).toFixed(2) : ""}"></div>
+      <div class="field"><label>Le ofrecemos USD/mes</label>
+        <input id="ofM" type="number" step="10" value="${ofM}"></div>
+    </div>`;
+  enlazarRate("#ofH", "#ofM");
+  ["#ofH","#ofM"].forEach(s => $(s).addEventListener("input", redactarOferta));
+
+  let pie = $("#ofertaPie");
+  if (!pie){
+    pie = document.createElement("div"); pie.id = "ofertaPie";
+    pie.style.cssText = "display:flex;gap:8px;margin-top:10px;flex-wrap:wrap";
+    $("#modalErr").parentElement.insertBefore(pie, $("#modalErr").nextSibling);
+  }
+  pie.innerHTML = `<button class="btn" id="btnEnviarOferta" type="button">Abrir en Outlook y marcar contactado</button>`;
+
+  redactarOferta();
+  $("#modal").classList.remove("hide");
+}
+
+function redactarOferta(){
+  if (!OFERTA) return;
+  const { p, pr } = OFERTA;
+  const h = Number($("#ofH").value || 0);
+  const m = Math.round(Number($("#ofM").value || 0));
+  const nombre = (p.nombre||"").split(" ")[0];
+  const rol = pr?.titulo || "la posición";
+  $("#modalAsunto").value = `Propuesta FactIQ · ${rol}`;
+  $("#modalCuerpo").value =
+`Hola ${nombre},
+
+Gracias por postularte. Revisamos tu perfil y queremos avanzar con vos para ${rol}.
+
+Estos son los términos de la propuesta:
+
+· Rol: ${rol}
+· Modalidad: remoto${pr?.meses ? `\n· Duración estimada: ${pr.meses} meses` : ""}${pr?.zona_horaria ? `\n· Zona horaria: ${pr.zona_horaria}` : ""}
+· Honorarios: USD ${h ? h.toFixed(2) : "___"} por hora (USD ${m ? m.toLocaleString("es-AR") : "___"} por mes, 160 horas)
+${p.disponible_desde ? `· Inicio: a partir del ${p.disponible_desde}\n` : ""}
+¿Te interesa avanzar en estos términos? Si nos confirmás, te presentamos al cliente y coordinamos la entrevista.
+
+Saludos,
+El equipo de FactIQ`;
+}
+
 /* ============ propuesta ============ */
 let PROP = null;
 
@@ -1320,9 +1432,9 @@ async function abrirPropuesta(postId){
     ? await sb.from("v_licitaciones").select("*").eq("codigo", p.bid_code).maybeSingle()
     : { data: null };
 
-  const costoH = Number(p.rate_hora_usd || 0);
+  const costoH = Number(p.rate_ofrecido || p.rate_hora_usd || 0);
   const costoM = costoH * HS_MES;
-  if (!costoH){ alert("Este candidato no declaró su pretensión, no se puede calcular el precio."); return; }
+  if (!costoH){ alert("No hay rate acordado con este candidato. Contactalo con una propuesta primero."); return; }
 
   const opcA = costoM + MARGEN_FIJO;
   const opcB = costoM * (1 + MARGEN_PCT);
@@ -1350,7 +1462,9 @@ async function abrirPropuesta(postId){
       ${mMax<0?"El candidato pide más que el budget completo.":""}</div>`;
   }
 
-  $("#modalTit").textContent = "Propuesta · " + p.nombre;
+  $("#modalTit").textContent = "Postular a 4Latam · " + p.nombre;
+  const ob0 = $("#ofertaBloque"); if (ob0) ob0.remove();
+  const op0 = $("#ofertaPie"); if (op0) op0.remove();
   $("#modalAsuntoWrap").classList.add("hide");
   $("#modalLabel").textContent = "Economía del envío";
   $("#modalCuerpo").style.display = "none";
@@ -1366,7 +1480,7 @@ async function abrirPropuesta(postId){
   }
   extra.innerHTML = `
     <div class="det" style="font-size:12.5px;color:var(--muted);margin-bottom:9px">
-      ${esc(p.nombre)} pide USD ${costoH}/h · USD ${Math.round(costoM).toLocaleString("es-AR")}/mes.
+      ${esc(p.nombre)} ${p.rate_ofrecido ? "aceptó" : "pide"} USD ${costoH.toFixed(2)}/h · USD ${Math.round(costoM).toLocaleString("es-AR")}/mes (es nuestro costo).
       ${p.bid_code?`Licitación <b>${esc(p.bid_code)}</b>${budgetM?` · budget USD ${Math.round(budgetM).toLocaleString("es-AR")}/mes`:""}`:"Sin licitación asociada"}
     </div>
     ${fila("a","Margen fijo · 1.000 USD", opcA)}
@@ -1396,6 +1510,23 @@ function precioElegido(){
 }
 
 document.addEventListener("click", async e=>{
+  if (e.target.id === "btnEnviarOferta"){
+    const h = Number($("#ofH").value || 0);
+    if (!h){ $("#modalErr").textContent = "Poné el rate que le vas a ofrecer."; return; }
+    const url = "https://outlook.office.com/mail/deeplink/compose"
+      + `?to=${encodeURIComponent(OFERTA.p.email)}`
+      + `&cc=${encodeURIComponent(MAIL_CC)}`
+      + `&subject=${encodeURIComponent($("#modalAsunto").value)}`
+      + `&body=${encodeURIComponent($("#modalCuerpo").value)}`;
+    window.open(url, "_blank", "noopener");
+    const { error } = await sb.rpc("marcar_contacto",
+      { p_post: OFERTA.p.id, p_estado: "CONTACTADO", p_rate: h });
+    if (error){ $("#modalErr").textContent = "Se abrió el mail pero no se pudo registrar: " + error.message; return; }
+    $("#modal").classList.add("hide");
+    cargarPostulaciones();
+    return;
+  }
+
   if (e.target.id === "btnRegistrar"){
     if (!PROP?.p.bid_code){ $("#modalErr").textContent = "Esta postulación no tiene licitación asociada."; return; }
     const precioM = precioElegido();
