@@ -1338,6 +1338,92 @@ $("#listaProyectos").addEventListener("click", async e=>{
 
 $("#btnRecargarPost").onclick = cargarPostulaciones;
 
+/* ============ Outlook: borrador con CV adjunto ============ */
+// Usa la app "FactIQ Ingesta CVs" registrada en Entra. Permiso delegado: Mail.ReadWrite.
+// Crea un BORRADOR en el Outlook del usuario: nada se envia sin que lo revise.
+const MS_CLIENT = "fc3730c2-621e-4301-81bb-2854954a1116";
+const MS_TENANT = "f5a0c69f-356d-4eef-beb4-f3a38045e02c";
+let MSAL_APP = null;
+
+function cargarMsal(){
+  if (window.msal) return Promise.resolve();
+  return new Promise((ok, mal) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js";
+    s.onload = ok; s.onerror = () => mal(new Error("no cargó la librería de Microsoft"));
+    document.head.appendChild(s);
+  });
+}
+
+async function tokenOutlook(){
+  await cargarMsal();
+  if (!MSAL_APP){
+    MSAL_APP = new msal.PublicClientApplication({
+      auth: { clientId: MS_CLIENT, authority: `https://login.microsoftonline.com/${MS_TENANT}`,
+              redirectUri: location.origin + "/" },
+      cache: { cacheLocation: "localStorage" }
+    });
+  }
+  const scopes = ["Mail.ReadWrite"];
+  const cuenta = MSAL_APP.getAllAccounts()[0];
+  if (cuenta){
+    try { return (await MSAL_APP.acquireTokenSilent({ scopes, account: cuenta })).accessToken; }
+    catch(_) { /* sigue al popup */ }
+  }
+  return (await MSAL_APP.acquireTokenPopup({ scopes, prompt: "select_account" })).accessToken;
+}
+
+async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
+  const txt0 = boton.textContent;
+  boton.disabled = true;
+  try{
+    boton.textContent = "Armando el CV anonimizado...";
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SUPA_URL}/functions/v1/cv-word`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${ses.session.access_token}` },
+      body: JSON.stringify({ analyst_id: analystId })
+    });
+    const cv = await r.json();
+    if (!r.ok || cv.error) throw new Error("no se pudo armar el CV: " + (cv.detalle || cv.error));
+
+    boton.textContent = "Conectando con Outlook...";
+    const token = await tokenOutlook();
+
+    boton.textContent = "Creando el borrador...";
+    const lista = s => s.split(",").map(a => a.trim()).filter(Boolean)
+                        .map(a => ({ emailAddress: { address: a } }));
+    const g = await fetch("https://graph.microsoft.com/v1.0/me/messages", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: asunto,
+        body: { contentType: "Text", content: cuerpo },
+        toRecipients: lista(MAIL_4LATAM),
+        ccRecipients: lista(MAIL_CC),
+        attachments: [{
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: cv.archivo || "CV.docx",
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          contentBytes: cv.base64
+        }]
+      })
+    });
+    const msg = await g.json();
+    if (!g.ok) throw new Error(msg?.error?.message || "Outlook rechazó el borrador");
+
+    window.open(msg.webLink, "_blank", "noopener");
+    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Borrador creado en tu Outlook con ${esc(cv.archivo)} adjunto. Revisalo y envialo desde ahí.</span>`;
+  }catch(e){
+    const msgErr = String(e.message || e);
+    const pista = /AADSTS|consent|permission|redirect/i.test(msgErr)
+      ? " Falta completar la configuración en Microsoft (permiso Mail.ReadWrite y la dirección de la app)." : "";
+    $("#modalErr").textContent = "No se pudo crear el borrador: " + msgErr + "." + pista + " Podés usar \"Abrir sin adjunto\".";
+  }finally{
+    boton.disabled = false; boton.textContent = txt0;
+  }
+}
+
 /* ============ propuesta al candidato ============ */
 // Regla del instructivo de recruiting: ofrecer entre 200 y 500 USD/mes menos
 // de lo que pide el candidato. Por defecto, 300 menos. Siempre editable.
@@ -1495,7 +1581,8 @@ async function abrirPropuesta(postId){
     <div class="field"><label>Notas internas</label><input id="propNotas" placeholder="opcional"></div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       <button class="btn" id="btnRegistrar" type="button">Registrar envío</button>
-      <button class="btn ghost" id="btnMailProp" type="button">Redactar mail a 4Latam</button>
+      <button class="btn" id="btnBorradorCV" type="button">Borrador a 4Latam con CV adjunto</button>
+      <button class="btn ghost" id="btnMailProp" type="button">Abrir sin adjunto</button>
     </div>`;
   $("#modal").classList.remove("hide");
 }
@@ -1541,7 +1628,8 @@ document.addEventListener("click", async e=>{
     cargarPostulaciones();
   }
 
-  if (e.target.id === "btnMailProp"){
+  if (e.target.id === "btnMailProp" || e.target.id === "btnBorradorCV"){
+    const conCV = e.target.id === "btnBorradorCV";
     const precioM = precioElegido();
     const p = PROP.p;
     const asunto = `FactIQ · Perfil para ${PROP.b?.titulo || p.bid_code || "la búsqueda"}`;
@@ -1562,6 +1650,7 @@ Adjuntamos el CV del perfil. Quedamos atentos para coordinar la entrevista.
 
 Saludos,
 El equipo de FactIQ`;
+    if (conCV){ crearBorradorConCV(asunto, cuerpo, PROP.p.analyst_id, e.target); return; }
     const url = "https://outlook.office.com/mail/deeplink/compose"
       + `?to=${encodeURIComponent(MAIL_4LATAM)}`
       + `&cc=${encodeURIComponent(MAIL_CC)}`
