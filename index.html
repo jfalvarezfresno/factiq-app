@@ -1068,6 +1068,25 @@ function botonesContacto(p){
       <button class="btn ghost sm" data-resp="RECHAZO" data-pid="${esc(p.id)}">Rechazó</button>` : ""}`;
 }
 
+function botonBorrarEnvio(s){
+  if (ROL !== "ADMIN") return "";
+  return `<button class="btn ghost sm" data-borrarenv="${esc(s.envio_id)}" data-nom="${esc(s.analista)}"
+            data-estadoenv="${esc(s.resultado||"")}" data-cod="${esc(s.codigo)}"
+            style="color:#B4531F;border-color:#E7C4B0">Eliminar envío</button>`;
+}
+
+async function eliminarEnvio(b, refrescar){
+  const gano = b.dataset.estadoenv === "WON";
+  const ok = confirm(
+    `¿Eliminar el envío de ${b.dataset.nom} a ${b.dataset.cod}?\n\n` +
+    (gano ? "Este perfil está marcado como que ENTRÓ: se pierde ese registro de margen y ganancia.\n\n" : "") +
+    "El analista y su postulación no se borran; podés volver a postularlo después.");
+  if (!ok) return;
+  const { error } = await sb.rpc("eliminar_envio", { p_envio: b.dataset.borrarenv });
+  if (error){ alert("No se pudo eliminar: " + error.message); return; }
+  refrescar();
+}
+
 function fichaEnvio(s){
   return `
   <div class="rowcard" style="grid-template-columns:1fr auto;cursor:default;
@@ -1089,6 +1108,7 @@ function fichaEnvio(s){
              <button class="btn ghost sm" data-res="LOST" data-env="${esc(s.envio_id)}">No entró</button>`
           : `<button class="btn ghost sm" data-res="" data-env="${esc(s.envio_id)}">Deshacer</button>`}
         <button class="btn ghost sm" data-cvanon="${esc(s.analyst_id)}" data-bid="${esc(s.codigo)}">CV anonimizado</button>
+        ${botonBorrarEnvio(s)}
       </div>
     </div>
     <div class="score"><b class="tabular">${s.margen_pct??"—"}</b><span>% margen</span></div>
@@ -1296,6 +1316,9 @@ $("#listaProyectos").addEventListener("click", async e=>{
     if (error) alert("No se pudo guardar: " + error.message);
     cargarPostulaciones(); return;
   }
+
+  const bEnv = e.target.closest("button[data-borrarenv]");
+  if (bEnv){ eliminarEnvio(bEnv, cargarPostulaciones); return; }
 
   const bBorrar = e.target.closest("button[data-borrar]");
   if (bBorrar){ eliminarProyecto(bBorrar.dataset.borrar); return; }
@@ -1711,9 +1734,11 @@ async function cargarLicitaciones(){
           <button class="btn sm" data-res="WON" data-env="${esc(s.envio_id)}">Entró</button>
           <button class="btn ghost sm" data-res="LOST" data-env="${esc(s.envio_id)}">No entró</button>
           <button class="btn ghost sm" data-cvanon="${esc(s.analyst_id)}" data-bid="${esc(s.codigo)}">CV anonimizado</button>
+          ${botonBorrarEnvio(s)}
         </div>`:`
         <div style="margin-top:8px">
           <button class="btn ghost sm" data-res="" data-env="${esc(s.envio_id)}">Deshacer resultado</button>
+          ${botonBorrarEnvio(s)}
         </div>`}
       </div>
       <div class="score"><b class="tabular">${s.margen_pct??"—"}</b><span>% margen</span></div>
@@ -1721,6 +1746,8 @@ async function cargarLicitaciones(){
 }
 
 $("#listaEnvios").addEventListener("click", async e=>{
+  const bEnv = e.target.closest("button[data-borrarenv]");
+  if (bEnv){ eliminarEnvio(bEnv, cargarLicitaciones); return; }
   const bAnon = e.target.closest("button[data-cvanon]");
   if (bAnon){ cvAnonimo(bAnon.dataset.cvanon, bAnon.dataset.bid); return; }
   const b = e.target.closest("button[data-res]");
