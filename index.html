@@ -1139,6 +1139,8 @@ async function cargarPostulaciones(){
           <button class="btn ghost sm" data-copiar="${esc(link)}">Copiar link</button>
           <button class="btn ghost sm" data-post="${esc(pr.codigo)}">Generar post LinkedIn</button>
           <button class="btn ${falt.length?"":"ghost"} sm" data-consulta="${esc(pr.codigo)}">Consultar a 4Latam</button>
+          ${ROL==="ADMIN"?`<button class="btn ghost sm" data-borrar="${esc(pr.codigo)}"
+            style="color:var(--err,#B4531F);border-color:#E7C4B0;margin-left:auto">Eliminar proyecto</button>`:""}
         </div>
         ${falt.length?`<div class="aviso" style="margin-bottom:12px"><b>Sin confirmar en el JD:</b> ${esc(falt.join(", "))}</div>`:""}
         ${pr.skills?`<div class="meta" style="margin-bottom:12px"><b>Skills:</b> ${esc(pr.skills)}</div>`:""}
@@ -1158,6 +1160,36 @@ async function cargarPostulaciones(){
     </div>`;
   }).join("");
   contarNuevas();
+}
+
+// eliminar un proyecto: borra busqueda, postulaciones y envios; los analistas quedan
+async function eliminarProyecto(codigo){
+  const { data: pr } = await sb.from("v_proyectos").select("*").eq("codigo", codigo).maybeSingle();
+  if (!pr) return;
+
+  const partes = [];
+  if (pr.postulantes) partes.push(`${pr.postulantes} postulaciones`);
+  if (pr.enviados)    partes.push(`${pr.enviados} envíos a 4Latam`);
+  const detalle = partes.length ? `Se van a borrar ${partes.join(" y ")}.` : "El proyecto no tiene postulaciones ni envíos.";
+
+  let ok;
+  if (pr.enviados > 0){
+    // si hubo envios se pierde historial economico: se pide escribir el codigo
+    const r = prompt(
+      `Vas a eliminar ${codigo} · ${pr.titulo||""}\n\n${detalle}\n` +
+      `${pr.ganados?`Incluye ${pr.ganados} perfil(es) que entraron: se pierde ese historial de margen.\n`:""}` +
+      `\nLos analistas NO se borran, siguen en la red.\n\nPara confirmar, escribí ${codigo}:`);
+    ok = r !== null && r.trim().toUpperCase() === codigo.toUpperCase();
+    if (r !== null && !ok) alert("El código no coincide. No se borró nada.");
+  } else {
+    ok = confirm(`¿Eliminar ${codigo} · ${pr.titulo||""}?\n\n${detalle}\nLos analistas siguen en la red.`);
+  }
+  if (!ok) return;
+
+  const { data, error } = await sb.rpc("eliminar_proyecto", { p_code: codigo });
+  if (error){ alert("No se pudo eliminar: " + error.message); return; }
+  if (PROY_ABIERTO === codigo) PROY_ABIERTO = null;
+  cargarPostulaciones();
 }
 
 // consulta a 4Latam con lo que falta del JD
@@ -1237,6 +1269,9 @@ $("#listaProyectos").addEventListener("click", async e=>{
     await navigator.clipboard.writeText(cop.dataset.copiar);
     cop.textContent = "Copiado"; setTimeout(()=>cop.textContent="Copiar link", 1400); return;
   }
+  const bBorrar = e.target.closest("button[data-borrar]");
+  if (bBorrar){ eliminarProyecto(bBorrar.dataset.borrar); return; }
+
   const bPost = e.target.closest("button[data-post]");
   if (bPost){ postDeProyecto(bPost.dataset.post); return; }
   const bCons = e.target.closest("button[data-consulta]");
