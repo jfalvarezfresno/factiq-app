@@ -23,7 +23,7 @@ El activo real que dejó eso son los **CVs y contactos** acumulados.
 |---|---|
 | Base de datos | Supabase, proyecto `adxuqnccpjmsbkjaxrbb` (Postgres 17, us-west-2) |
 | Código de la app | Tabla `app_files` de Supabase → se publica a GitHub `jfalvarezfresno/factiq-app` |
-| Hosting | **Cloudflare Pages** → https://factiq-app.pages.dev (Netlify quedó atrás: agotó su plan gratuito) |
+| Hosting | **Cloudflare Pages** → https://factiq-app.pages.dev, con dominio propio outsourcingapp.fact-iq.com (CNAME desde cPanel). Netlify quedó atrás: agotó su plan gratuito |
 | Archivos de origen | OneDrive de `info@fact-iq.com`, carpeta "FactIQ - Consultoría en Data" |
 | CVs de postulantes | Supabase Storage, bucket privado `cvs` |
 | Plantilla del CV anonimizado | Tabla `plantillas`, fila `cv_anonimo` (docx en base64) |
