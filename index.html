@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- version: 2026-09-22 01:35 -->
+<!-- version: 2026-09-22 02:10 -->
 <meta charset="utf-8">
 <!-- This site is hosted on Netlify. Anyone can build and deploy a site
      like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
@@ -280,6 +280,19 @@ tbody tr:hover{background:var(--surface-2)}
               <div class="chips" id="chipsSkills"></div>
             </div>
             <div class="aviso hide" id="avisoFaltan"></div>
+            <div id="cardProyecto" style="background:var(--surface-2);border-radius:8px;
+                 padding:12px;margin-top:14px">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+                Guardá la búsqueda como proyecto para poder contactar y postular candidatos.</div>
+              <div class="grid2">
+                <div class="field" style="margin:0"><label>Código</label>
+                  <input id="pr_codigo" type="text" placeholder="X51"></div>
+                <div class="field" style="margin:0"><label>Nombre del proyecto</label>
+                  <input id="pr_nombre" type="text"></div>
+              </div>
+              <button class="btn sm" id="btnCrearProyecto" style="margin-top:10px">Crear proyecto</button>
+              <span id="prEstado" class="cov" style="margin-left:8px"></span>
+            </div>
             <div style="display:flex;gap:8px;margin-top:14px">
               <button class="btn" id="btnBuscar">Buscar candidatos</button>
               <button class="btn ghost hide" id="btnPedirDatos">Pedir lo que falta</button>
@@ -499,6 +512,12 @@ async function analizar(){
     SKILLS = (d.skills_clave ?? []).map(s => s.skill).filter(Boolean);
     pintarChips(); marcarFaltantes();
     $("#cardCampos").classList.remove("hide");
+    PROYECTO = null;
+    $("#btnCrearProyecto").disabled = false;
+    $("#btnCrearProyecto").textContent = "Crear proyecto";
+    $("#prEstado").textContent = "";
+    $("#pr_codigo").value = ""; $("#pr_nombre").value = "";
+    sugerirProyecto();
   }catch(e){
     $("#jdErr").textContent = "No se pudo analizar: " + e.message;
   }finally{
@@ -533,6 +552,44 @@ function pintarChips(){
   $("#chipsSkills").innerHTML = SKILLS.map((s,i)=>
     `<span class="chip">${esc(s)}<button data-i="${i}" title="Quitar">&times;</button></span>`).join("");
 }
+
+/* ============ proyecto activo ============ */
+let PROYECTO = null;   // codigo del proyecto de la busqueda en curso
+
+async function sugerirProyecto(){
+  const { data } = await sb.rpc("proximo_codigo");
+  if (data && !$("#pr_codigo").value) $("#pr_codigo").value = data;
+  if (!$("#pr_nombre").value) $("#pr_nombre").value = $("#f_titulo").value || "";
+}
+
+async function crearProyecto(){
+  const codigo = $("#pr_codigo").value.trim().toUpperCase();
+  const nombre = $("#pr_nombre").value.trim();
+  if (!nombre){ $("#prEstado").textContent = "Poné un nombre."; return; }
+  $("#btnCrearProyecto").disabled = true;
+  try{
+    const { data, error } = await sb.rpc("crear_proyecto", { p: {
+      codigo, titulo: nombre,
+      seniority: $("#f_seniority").value || null,
+      duracion: $("#f_duracion").value || null,
+      budget: $("#f_budget").value || null,
+      zona_horaria: $("#f_zona").value,
+      skills: SKILLS,
+      preguntas: ULTIMO?.preguntas_screening || []
+    }});
+    if (error) throw new Error(error.message);
+    PROYECTO = data.codigo;
+    $("#pr_codigo").value = data.codigo;
+    $("#prEstado").innerHTML = `<span style="color:var(--verde-fg)">Proyecto ${esc(data.codigo)} creado</span>`;
+    $("#btnCrearProyecto").textContent = "Proyecto creado";
+    pintarCandidatos();
+  }catch(e){
+    $("#prEstado").innerHTML = `<span style="color:var(--warn)">${esc(e.message)}</span>`;
+    $("#btnCrearProyecto").disabled = false;
+  }
+}
+
+$("#btnCrearProyecto").onclick = crearProyecto;
 
 /* ============ buscar candidatos ============ */
 async function buscar(){
@@ -639,14 +696,35 @@ function pintarDetalle(i){
       </dl>
       ${c.resumen?`<div style="font-size:13px;color:var(--ink-2)">${esc(c.resumen)}</div>`:""}
       ${bloquePrecio}
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn" id="btnMensaje" ${c.email?"":"disabled"}>Escribirle</button>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn" id="btnPropuestaRed" ${c.email?"":"disabled"}>Contactar con propuesta</button>
+        ${ROL==="ADMIN"?`<button class="btn" id="btnPostularRed">Postular</button>`:""}
+        <button class="btn ghost" id="btnMensaje" ${c.email?"":"disabled"}>Escribir sin propuesta</button>
         <button class="btn ghost" id="btnCerrarDet">Cerrar</button>
       </div>
+      ${PROYECTO
+        ? `<div class="det" style="margin-top:7px;font-size:12px;color:var(--muted)">
+             Se suma al proyecto <b>${esc(PROYECTO)}</b>.</div>`
+        : `<div class="aviso" style="margin-top:9px">Creá el proyecto arriba para poder
+             contactar o postular a este candidato.</div>`}
       ${c.email?"":`<div class="det" style="margin-top:6px;color:var(--warn);font-size:12px">
         No tenemos su correo. Buscalo por nombre en LinkedIn.</div>`}
     </div>`;
   $("#panelDetalle").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+// Sumar al candidato de la red al proyecto activo y seguir con el circuito normal
+async function desdeLaRed(accion){
+  if (!PROYECTO){
+    alert("Primero creá el proyecto, arriba en los datos del rol.");
+    return;
+  }
+  const c = CANDIDATOS[ELEGIDO];
+  const { data, error } = await sb.rpc("sumar_de_la_red",
+    { p_analyst: c.analyst_id, p_bid: PROYECTO });
+  if (error){ alert("No se pudo sumar al proyecto: " + error.message); return; }
+  if (accion === "propuesta") contactarCandidato(data.postulacion);
+  else abrirPropuesta(data.postulacion);
 }
 
 /* ============ mensajes ============ */
@@ -818,7 +896,7 @@ async function cvAnonimoHtmlViejo(analystId, bidCode){
     </div>`).join("");
 
   const html = `<!DOCTYPE html><html lang="en"><head>
-<!-- version: 2026-09-22 01:35 --><meta charset="utf-8">
+<!-- version: 2026-09-22 02:10 --><meta charset="utf-8">
 <title>${esc(cv.titulo||"CV")}</title>
 <style>
 *{box-sizing:border-box}
@@ -881,7 +959,7 @@ async function cvAnonimoViejo(analystId, bidCode){
 
   const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
   const html = `<!DOCTYPE html><html lang="es"><head>
-<!-- version: 2026-09-22 01:35 --><meta charset="utf-8">
+<!-- version: 2026-09-22 02:10 --><meta charset="utf-8">
 <title>${esc(anonimo(a.full_name))} · FactIQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -1032,6 +1110,7 @@ function fichaPostulacion(p){
         <span class="nombre">${esc(p.nombre)}</span>
         <span class="cov">${fecha}</span>
         ${leido?`<span class="cov" style="color:var(--verde-fg)">CV leído</span>`:""}
+        ${p.origen_red?`<span class="cov" style="color:var(--navy-2)">de la red</span>`:""}
         <span class="cov" style="margin-left:auto">${esc(p.estado)}</span>
       </div>
       <div class="meta">${esc(p.pais||"—")} · ${p.anios_exp??"—"} años ·
@@ -1051,6 +1130,8 @@ function fichaPostulacion(p){
         <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Revisada</button>
         <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
         ${p.ya_enviado?`<span class="enviado" style="align-self:center">ya enviado</span>`:""}
+        <button class="btn ghost sm" data-quitar="${esc(p.id)}" data-nom="${esc(p.nombre)}"
+                style="color:#B4531F;border-color:#E7C4B0;margin-left:auto">Quitar del proyecto</button>
       </div>
     </div>
   </div>`;
@@ -1318,6 +1399,14 @@ $("#listaProyectos").addEventListener("click", async e=>{
   if (bResp){
     const { error } = await sb.rpc("marcar_contacto", { p_post: bResp.dataset.pid, p_estado: bResp.dataset.resp });
     if (error) alert("No se pudo guardar: " + error.message);
+    cargarPostulaciones(); return;
+  }
+
+  const bQuitar = e.target.closest("button[data-quitar]");
+  if (bQuitar){
+    if (!confirm(`¿Quitar a ${bQuitar.dataset.nom} de este proyecto?\n\nEl analista sigue en tu red; solo deja de figurar como postulante acá.`)) return;
+    const { error } = await sb.rpc("quitar_postulacion", { p_post: bQuitar.dataset.quitar });
+    if (error) alert("No se pudo quitar: " + error.message);
     cargarPostulaciones(); return;
   }
 
@@ -1927,6 +2016,8 @@ $("#resultados").addEventListener("click", e=>{
   const row = e.target.closest(".rowcard");
   if (row){ ELEGIDO = Number(row.dataset.i); pintarCandidatos(); return; }
   if (e.target.id === "btnMensaje") mensajeCandidato();
+  if (e.target.id === "btnPropuestaRed") desdeLaRed("propuesta");
+  if (e.target.id === "btnPostularRed")  desdeLaRed("postular");
   if (e.target.id === "btnCerrarDet"){ ELEGIDO=null; pintarCandidatos(); }
 });
 
