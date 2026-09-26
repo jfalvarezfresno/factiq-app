@@ -174,3 +174,9 @@ Todas usan el modelo `claude-haiku-4-5-20251001`. Costo aproximado: 1 centavo po
 - El resultado histórico (`won`) quedó anulado: el extractor marcó 108 ganadores cuando
   fueron 2. El dato real está en el Tracker de licitaciones, sin procesar.
 - WhatsApp para contactar candidatos: requiere alta en Meta y plantillas aprobadas.
+- **Años de experiencia por tecnología.** Hoy la base guarda la tecnología pero casi nunca los
+  años. Hay dos frentes: (a) revisar la base y reprocesar los archivos MATRIX / matrices del
+  OneDrive, donde muchos perfiles ya los tienen completados; (b) que el formulario de
+  postulación pida, para cada tecnología requerida por el JD, los años de experiencia del
+  candidato, en vez de solo tildarla.
+- **Conectar este flujo con el sistema de postulación de Ale.**
