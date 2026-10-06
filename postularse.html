@@ -158,8 +158,31 @@ textarea{min-height:76px;resize:vertical}
         </div>
       </div>
 
+      <div class="card" id="cardMatriz" style="display:none">
+        <h3>4 · Tu experiencia técnica <span style="color:var(--err)">*</span></h3>
+        <div class="hint" style="margin:-8px 0 14px">Para cada punto, poné los años y contá
+          brevemente qué hiciste. Es lo que el cliente evalúa.</div>
+        <div id="matrizTecnica"></div>
+      </div>
+
+      <div class="card" id="cardExcluyente" style="display:none">
+        <h3>5 · Condiciones del puesto <span style="color:var(--err)">*</span></h3>
+        <div id="matrizExcluyente"></div>
+      </div>
+
+      <div class="card" id="cardFisico" style="display:none">
+        <h3>Requisitos físicos</h3>
+        <div class="hint" style="margin:-8px 0 10px">El puesto es en un depósito y exige
+          actividad física. Revisá la lista y confirmá si podés cumplirla.</div>
+        <ul id="listaFisico" style="margin:0 0 12px;padding-left:20px;font-size:13.5px;color:var(--ink-2)"></ul>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400">
+          <input type="checkbox" id="fisicoOk" style="width:auto;margin-top:3px">
+          <span id="fisicoTxt">Confirmo que puedo cumplir con todos estos requisitos.</span>
+        </label>
+      </div>
+
       <div class="card" id="cardPreguntas" style="display:none">
-        <h3>4 · Preguntas sobre el rol <span style="color:var(--err)">*</span></h3>
+        <h3>Preguntas sobre el rol <span style="color:var(--err)">*</span></h3>
         <div id="preguntas"></div>
       </div>
 
@@ -315,6 +338,7 @@ document.getElementById("idioma").addEventListener("click", e => {
   LANG = b.dataset.lang;
   localStorage.setItem("factiq_lang", LANG);
   pintarPreguntas();
+  pintarMatriz();
   aplicarIdioma();
 });
 
@@ -339,6 +363,7 @@ async function arrancar(){
       <div class="det">${t("Guardamos tu perfil para las búsquedas que abramos.")}</div>`;
   }
   pintarSkills();
+  await cargarMatriz();
   aplicarIdioma();
 }
 
@@ -432,6 +457,67 @@ document.addEventListener("input", e=>{
 });
 
 /* ---------- tecnologias ---------- */
+/* ---------- matriz de skills ---------- */
+let MATRIZ = [];
+
+async function cargarMatriz(){
+  if (!CODE) return;
+  const { data } = await sb.rpc("matriz_publica", { p_code: CODE });
+  MATRIZ = Array.isArray(data) ? data : [];
+  pintarMatriz();
+}
+
+const txtP = p => LANG === "en" ? (p.texto_en || p.texto_es) : p.texto_es;
+
+function pintarMatriz(){
+  if (!MATRIZ.length) return;
+  const tec = MATRIZ.filter(p => p.bloque === "TECNICA");
+  const exc = MATRIZ.filter(p => p.bloque === "EXCLUYENTE");
+  const fis = MATRIZ.filter(p => p.bloque === "FISICO");
+
+  if (tec.length){
+    $("#cardMatriz").style.display = "block";
+    $("#matrizTecnica").innerHTML = tec.map((p,i)=>{
+      const a = document.getElementById("mt_a"+i)?.value || "";
+      const d = document.getElementById("mt_d"+i)?.value || "";
+      return `<div class="field" style="border-bottom:1px solid var(--rule);padding-bottom:12px">
+        <label for="mt_a${i}">${esc(txtP(p))} <span class="ob">*</span></label>
+        <div class="grid2">
+          <input id="mt_a${i}" type="number" min="0" max="50" step="1" value="${esc(a)}"
+                 placeholder="${LANG==="en"?"years":"años"}" data-celda="${esc(p.celda)}">
+          <input id="mt_d${i}" value="${esc(d)}" data-celda-det="${esc(p.celda_detalle||"")}"
+                 placeholder="${LANG==="en"?"what you did with it":"qué hiciste con eso"}">
+        </div></div>`;
+    }).join("");
+  }
+
+  if (exc.length){
+    $("#cardExcluyente").style.display = "block";
+    $("#matrizExcluyente").innerHTML = exc.map((p,i)=>{
+      const v = document.querySelector(`input[name=ex${i}]:checked`)?.value || "";
+      const si = LANG==="en" ? "Yes" : "Sí", no = LANG==="en" ? "No" : "No";
+      return `<div class="field">
+        <label>${esc(txtP(p))} <span class="ob">*</span></label>
+        <div style="display:flex;gap:16px;margin-top:4px">
+          <label style="font-weight:400;display:flex;gap:6px;align-items:center">
+            <input type="radio" name="ex${i}" value="Yes" data-celda="${esc(p.celda)}"
+                   style="width:auto" ${v==="Yes"?"checked":""}> ${si}</label>
+          <label style="font-weight:400;display:flex;gap:6px;align-items:center">
+            <input type="radio" name="ex${i}" value="No" data-celda="${esc(p.celda)}"
+                   style="width:auto" ${v==="No"?"checked":""}> ${no}</label>
+        </div></div>`;
+    }).join("");
+  }
+
+  if (fis.length){
+    $("#cardFisico").style.display = "block";
+    $("#listaFisico").innerHTML = fis.map(p=>`<li>${esc(txtP(p))}</li>`).join("");
+    $("#fisicoTxt").textContent = LANG==="en"
+      ? "I confirm I can meet all of these requirements."
+      : "Confirmo que puedo cumplir con todos estos requisitos.";
+  }
+}
+
 // Las preguntas se muestran en el idioma elegido, pero la respuesta se guarda
 // siempre bajo la pregunta en español, para que no cambie la clave.
 function pintarPreguntas(){
@@ -523,12 +609,58 @@ $("#form").addEventListener("submit", async e=>{
     $("#email").classList.add("mal"); $("#err").textContent = t("Revisá el correo, no parece válido."); return;
   }
 
+  // matriz de skills: tecnicas, excluyentes y confirmacion fisica
+  const matriz = [];
+  if (MATRIZ.length){
+    const tec = MATRIZ.filter(p => p.bloque === "TECNICA");
+    for (let i = 0; i < tec.length; i++){
+      const a = $("#mt_a"+i), d = $("#mt_d"+i);
+      const vacio = !a.value.trim();
+      a.classList.toggle("mal", vacio);
+      if (vacio){
+        $("#err").textContent = LANG==="en"
+          ? "Please fill in the years for each technical item."
+          : "Completá los años de cada punto técnico.";
+        a.focus(); a.scrollIntoView({behavior:"smooth", block:"center"}); return;
+      }
+      matriz.push({ celda: tec[i].celda, celda_detalle: tec[i].celda_detalle || null,
+                    pregunta: tec[i].texto_es, skill: tec[i].skill || null,
+                    anios: a.value.trim(), detalle: d.value.trim(), bloque: "TECNICA" });
+    }
+    const exc = MATRIZ.filter(p => p.bloque === "EXCLUYENTE");
+    for (let i = 0; i < exc.length; i++){
+      const sel = document.querySelector(`input[name=ex${i}]:checked`);
+      if (!sel){
+        $("#err").textContent = LANG==="en"
+          ? "Please answer every question about the role conditions."
+          : "Respondé todas las condiciones del puesto.";
+        $("#cardExcluyente").scrollIntoView({behavior:"smooth", block:"center"}); return;
+      }
+      matriz.push({ celda: exc[i].celda, pregunta: exc[i].texto_es,
+                    valor: sel.value, bloque: "EXCLUYENTE" });
+    }
+    const fis = MATRIZ.filter(p => p.bloque === "FISICO");
+    if (fis.length){
+      if (!$("#fisicoOk").checked){
+        $("#err").textContent = LANG==="en"
+          ? "Please confirm you can meet the physical requirements."
+          : "Confirmá que podés cumplir los requisitos físicos.";
+        $("#cardFisico").scrollIntoView({behavior:"smooth", block:"center"}); return;
+      }
+      fis.forEach(p => matriz.push({ celda: p.celda, pregunta: p.texto_es,
+                                     valor: "Fit", bloque: "FISICO" }));
+    }
+    const rate = MATRIZ.find(p => p.bloque === "RATE");
+    if (rate) matriz.push({ celda: rate.celda, pregunta: rate.texto_es,
+                            valor: $("#rateMes").value || "", bloque: "RATE" });
+  }
+
   const btn = $("#btnEnviar");
   btn.disabled = true; btn.textContent = t("Enviando...");
   try{
     const respuestas = {};
     document.querySelectorAll("[data-preg]").forEach(t=>{ respuestas[t.dataset.preg] = t.value.trim(); });
-    const { error } = await sb.rpc("postularse", { p: {
+    const { data, error } = await sb.rpc("postularse", { p: {
       bid_code: CODE,
       nombre: $("#nombre").value.trim(),
       email: $("#email").value.trim(),
@@ -544,6 +676,15 @@ $("#form").addEventListener("submit", async e=>{
       cv_path: CV_PATH
     }});
     if (error) throw new Error(error.message);
+
+    // guardar la matriz y llevar los años de cada tecnología al perfil
+    if (matriz.length && data?.postulacion){
+      await sb.rpc("guardar_matriz", { p_post: data.postulacion, p_resp: matriz });
+      const conSkill = matriz.filter(m => m.bloque === "TECNICA" && m.skill && m.anios);
+      if (conSkill.length) await sb.rpc("guardar_anios_tech",
+        { p_analyst: data.analyst_id, p_items: conSkill });
+    }
+
     $("#form").style.display = "none";
     $("#gracias").style.display = "block";
     aplicarIdioma();
