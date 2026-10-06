@@ -576,7 +576,8 @@ async function crearProyecto(){
       budget: $("#f_budget").value || null,
       zona_horaria: $("#f_zona").value,
       skills: SKILLS,
-      preguntas: ULTIMO?.preguntas_screening || []
+      preguntas: ULTIMO?.preguntas_screening || [],
+      preguntas_en: ULTIMO?.preguntas_screening_en || []
     }});
     if (error) throw new Error(error.message);
     PROYECTO = data.codigo;
