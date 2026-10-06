@@ -217,6 +217,14 @@ function esc(s){ return String(s ?? "").replace(/[&<>"]/g,
 /* ---------- idioma ---------- */
 const EN = {
  "Postulate a esta búsqueda":"Apply to this role",
+ "Subí tu CV y completamos lo que podamos por vos. Después solo revisás y agregás lo que falte.":"Upload your resume and we'll fill in what we can for you. Then just review it and add what's missing.",
+ "Tus datos quedan en la base de FactIQ para esta y futuras búsquedas. Si querés que los borremos, escribinos a info@fact-iq.com.":"Your details stay in FactIQ's database for this and future roles. If you want them removed, write to info@fact-iq.com.",
+ "Gracias por tomarte el tiempo. Si tu perfil encaja con la búsqueda te vamos a escribir al correo que dejaste.":"Thanks for taking the time. If your profile fits the role, we'll email you at the address you provided.",
+ "Completamos en verde lo que leímos de tu CV. Revisalo y corregí lo que haga falta.":"Fields in green were filled from your resume. Please review and correct anything that's off.",
+ "Completá cualquiera de los dos y calculamos el otro. Tomamos 160 horas por mes.":"Fill in either one and we'll calculate the other. We use 160 hours per month.",
+ "Días y horarios que te vienen bien, en tu huso horario.":"Days and times that work for you, in your own time zone.",
+ "Tocá para marcar o desmarcar. Las del puesto aparecen primero.":"Tap to select or deselect. The ones required for the role come first.",
+ "Tu CV":"Your resume","(PDF o Word, hasta 10 MB)":"(PDF or Word, up to 10 MB)",
  "Subí tu CV y completamos lo que podamos por vos.":"Upload your resume and we fill in what we can for you.",
  "Después solo revisás y agregás lo que falte.":"Then you just review it and add what's missing.",
  "1 · Tu CV":"1 · Your resume","2 · Tus datos":"2 · Your details",
@@ -270,22 +278,35 @@ let LANG = localStorage.getItem("factiq_lang")
 
 const t = s => LANG === "en" ? (EN[s] ?? s) : s;
 
+// Se recorren los nodos de texto, no los elementos: asi tambien se traducen las
+// etiquetas que tienen un asterisco o un "(opcional)" adentro.
+const ORIGINAL = new WeakMap();
+const normalizar = s => s.trim().replace(/\s+/g, " ");
+
 function aplicarIdioma(){
   document.documentElement.lang = LANG;
   document.querySelectorAll("#idioma .bl").forEach(b =>
     b.setAttribute("aria-current", b.dataset.lang === LANG));
-  // textos estaticos: se guarda el original la primera vez
-  document.querySelectorAll("h1,h2,h3,label,.lead,.hint,.det,.nota,.leyenda,.btn,span,b")
-    .forEach(el => {
-      if (el.children.length) return;
-      if (!el.dataset.es) el.dataset.es = el.textContent.trim();
-      const base = el.dataset.es;
-      if (base && (EN[base] || LANG === "es")) el.textContent = t(base);
-    });
+
+  const paso = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodos = [];
+  while (paso.nextNode()) nodos.push(paso.currentNode);
+
+  nodos.forEach(n => {
+    const p = n.parentElement;
+    if (!p || p.tagName === "SCRIPT" || p.tagName === "STYLE" || p.id === "idioma") return;
+    if (!ORIGINAL.has(n)) ORIGINAL.set(n, n.textContent);
+    const base = ORIGINAL.get(n);
+    const clave = normalizar(base);
+    if (!clave) return;
+    const trad = LANG === "en" ? EN[clave] : null;
+    n.textContent = trad ? base.replace(clave, trad) : base;
+  });
+
   document.querySelectorAll("[placeholder]").forEach(el => {
     if (!el.dataset.esPh) el.dataset.esPh = el.getAttribute("placeholder");
-    const base = el.dataset.esPh;
-    if (base && (EN[base] || LANG === "es")) el.setAttribute("placeholder", t(base));
+    const base = normalizar(el.dataset.esPh);
+    el.setAttribute("placeholder", LANG === "en" ? (EN[base] ?? base) : base);
   });
 }
 
