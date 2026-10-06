@@ -241,6 +241,7 @@ function esc(s){ return String(s ?? "").replace(/[&<>"]/g,
 const EN = {
  "Postulate a esta búsqueda":"Apply to this role",
  "4 · Tu experiencia técnica":"4 · Your technical experience",
+ "Argentina, México, Colombia...":"United States, Mexico, Argentina...",
  "5 · Condiciones del puesto":"5 · Role conditions",
  "Requisitos físicos":"Physical requirements",
  "Preguntas sobre el rol":"Questions about the role",
@@ -326,6 +327,8 @@ function aplicarIdioma(){
     const p = n.parentElement;
     if (!p || p.tagName === "SCRIPT" || p.tagName === "STYLE" || p.id === "idioma") return;
     if (!ORIGINAL.has(n)) ORIGINAL.set(n, n.textContent);
+    // si el nodo se repinto ya traducido, no lo tomamos como original en español
+    if (LANG === "es" && !EN[normalizar(ORIGINAL.get(n))] ) ORIGINAL.set(n, n.textContent);
     const base = ORIGINAL.get(n);
     const clave = normalizar(base);
     if (!clave) return;
