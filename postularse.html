@@ -314,6 +314,7 @@ document.getElementById("idioma").addEventListener("click", e => {
   const b = e.target.closest("button[data-lang]"); if (!b) return;
   LANG = b.dataset.lang;
   localStorage.setItem("factiq_lang", LANG);
+  pintarPreguntas();
   aplicarIdioma();
 });
 
@@ -332,13 +333,7 @@ async function arrancar(){
       <h2>${esc(BID.titulo || t("Búsqueda abierta"))}</h2>
       <div class="det">${BID.seniority ? esc(BID.seniority)+" · " : ""}${BID.duracion ? esc(BID.duracion)+" "+t("meses")+" · " : ""}${t("remoto")}</div>
       ${SKILLS.length ? `<div class="skills">${SKILLS.map(s=>`<span class="sk">${esc(s)}</span>`).join("")}</div>` : ""}`;
-    const preg = BID.preguntas || [];
-    if (preg.length){
-      $("#cardPreguntas").style.display = "block";
-      $("#preguntas").innerHTML = preg.map((q,i)=>`
-        <div class="field"><label for="p${i}">${esc(q)} <span class="ob">*</span></label>
-          <textarea id="p${i}" data-preg="${esc(q)}"></textarea></div>`).join("");
-    }
+    pintarPreguntas();
   } else {
     $("#puesto").innerHTML = `<h2>${t("Postulación espontánea")}</h2>
       <div class="det">${t("Guardamos tu perfil para las búsquedas que abramos.")}</div>`;
@@ -437,6 +432,23 @@ document.addEventListener("input", e=>{
 });
 
 /* ---------- tecnologias ---------- */
+// Las preguntas se muestran en el idioma elegido, pero la respuesta se guarda
+// siempre bajo la pregunta en español, para que no cambie la clave.
+function pintarPreguntas(){
+  if (!BID) return;
+  const es = BID.preguntas || [];
+  const en = BID.preguntas_en || [];
+  if (!es.length && !en.length) return;
+  const lista = (LANG === "en" && en.length) ? en : es;
+  const clave = es.length ? es : en;
+  $("#cardPreguntas").style.display = "block";
+  $("#preguntas").innerHTML = lista.map((q,i)=>{
+    const previo = document.getElementById("p"+i)?.value || "";
+    return `<div class="field"><label for="p${i}">${esc(q)} <span class="ob">*</span></label>
+      <textarea id="p${i}" data-preg="${esc(clave[i] || q)}">${esc(previo)}</textarea></div>`;
+  }).join("");
+}
+
 function pintarSkills(){
   const cont = $("#misSkills");
   if (!SKILLS.length){ cont.innerHTML = `<span class="hint">Agregá las tuyas abajo.</span>`; return; }
