@@ -28,6 +28,10 @@ header{background:var(--navy);border-bottom:3px solid var(--verde);padding:20px}
 .wordmark i{font-style:normal;color:var(--verde)}
 .tagline{color:#A9C0DC;font-size:12.5px;margin-top:2px;
   font-family:"Roboto Mono",monospace;letter-spacing:.04em}
+.bl{background:transparent;border:1px solid #2E4F7C;color:#A9C0DC;border-radius:5px;
+  padding:4px 10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:"Roboto Mono",monospace}
+.bl:hover{color:#fff}
+.bl[aria-current=true]{background:var(--verde);border-color:var(--verde);color:var(--navy)}
 
 main{padding:28px 20px 60px}
 h1{font-family:Roboto,sans-serif;font-weight:700;font-size:25px;letter-spacing:-.02em;margin:0 0 6px}
@@ -88,9 +92,15 @@ textarea{min-height:76px;resize:vertical}
 </head>
 <body>
 
-<header><div class="wrap">
-  <div class="wordmark">Fact<i>IQ</i></div>
-  <div class="tagline">Data Intelligence for Better Decisions</div>
+<header><div class="wrap" style="display:flex;align-items:center;gap:12px">
+  <div style="flex:1">
+    <div class="wordmark">Fact<i>IQ</i></div>
+    <div class="tagline">Data Intelligence for Better Decisions</div>
+  </div>
+  <div id="idioma" style="display:flex;gap:4px">
+    <button type="button" data-lang="es" class="bl">ES</button>
+    <button type="button" data-lang="en" class="bl">EN</button>
+  </div>
 </div></header>
 
 <main class="wrap">
@@ -204,6 +214,88 @@ let BID = null, SKILLS = [], ELEGIDOS = new Set(), CV_PATH = null, SUBIENDO = fa
 function esc(s){ return String(s ?? "").replace(/[&<>"]/g,
   m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
 
+/* ---------- idioma ---------- */
+const EN = {
+ "Postulate a esta búsqueda":"Apply to this role",
+ "Subí tu CV y completamos lo que podamos por vos.":"Upload your resume and we fill in what we can for you.",
+ "Después solo revisás y agregás lo que falte.":"Then you just review it and add what's missing.",
+ "1 · Tu CV":"1 · Your resume","2 · Tus datos":"2 · Your details",
+ "3 · Tu experiencia":"3 · Your experience","4 · Preguntas sobre el rol":"4 · Questions about the role",
+ "Disponibilidad":"Availability","Tu expectativa":"Your rate expectation",
+ "Arrastrá tu CV acá o tocá para elegirlo":"Drag your resume here or tap to choose it",
+ "PDF o Word, hasta 10 MB":"PDF or Word, up to 10 MB",
+ "Tocá para cambiarlo":"Tap to change it",
+ "Nombre y apellido":"Full name","Correo":"Email","Teléfono":"Phone","País":"Country",
+ "(opcional)":"(optional)","Años de experiencia total":"Total years of experience",
+ "Tus tecnologías":"Your technologies",
+ "Tocá para marcar o desmarcar. Las del puesto aparecen primero.":"Tap to select or deselect. The ones required for the role come first.",
+ "Otra tecnología y Enter":"Another technology, then Enter",
+ "Podrías arrancar desde":"You could start from","Para entrevistas":"For interviews",
+ "Ej: mar y jue después de las 18":"e.g. Tue and Thu after 6pm",
+ "Días y horarios que te vienen bien, en tu huso horario.":"Days and times that work for you, in your own time zone.",
+ "USD por hora":"USD per hour","USD por mes":"USD per month","por hora":"per hour","por mes":"per month",
+ "Completá cualquiera de los dos y calculamos el otro. Tomamos 160 horas por mes.":"Fill in either one and we calculate the other. We use 160 hours per month.",
+ "Enviar mi postulación":"Submit my application","Enviando...":"Sending...",
+ "Tus datos quedan en la base de FactIQ para esta y futuras búsquedas.":"Your details stay in FactIQ's database for this and future roles.",
+ "Si querés que los borremos, escribinos a info@fact-iq.com.":"If you want them removed, write to info@fact-iq.com.",
+ "Recibimos tu postulación":"We received your application",
+ "Gracias por tomarte el tiempo. Si tu perfil encaja con la búsqueda":"Thanks for taking the time. If your profile fits the role",
+ "te vamos a escribir al correo que dejaste.":"we'll email you at the address you provided.",
+ "Cargando la búsqueda...":"Loading the role...",
+ "Postulación espontánea":"Open application",
+ "Guardamos tu perfil para las búsquedas que abramos.":"We'll keep your profile for roles we open.",
+ "Búsqueda abierta":"Open role","remoto":"remote","meses":"months",
+ "Agregá las tuyas abajo.":"Add yours below.",
+ "Completamos en verde lo que leímos de tu CV. Revisalo y corregí lo que haga falta.":"Fields in green were filled from your resume. Please review and correct anything that's off.",
+ "Solo aceptamos PDF o Word.":"We only accept PDF or Word.",
+ "El archivo pesa más de 10 MB.":"The file is larger than 10 MB.",
+ "Leyendo tu CV... tarda unos segundos":"Reading your resume... this takes a few seconds",
+ "No pudimos subir tu CV: ":"We couldn't upload your resume: ",
+ ". Probá de nuevo.":". Please try again.",
+ "CV cargado.":"Resume uploaded.",
+ "CV cargado. No pudimos leer los datos automáticamente, completalos abajo.":"Resume uploaded. We couldn't read it automatically, please fill in the fields below.",
+ "Esperá a que termine de cargar tu CV.":"Wait until your resume finishes uploading.",
+ "Necesitamos tu CV para postularte.":"We need your resume to apply.",
+ "Revisá el correo, no parece válido.":"Please check your email, it doesn't look valid.",
+ "Nos falta: ":"Missing: ",
+ "nombre":"full name","correo":"email","país":"country",
+ "años de experiencia":"years of experience","fecha de inicio":"start date",
+ "disponibilidad para entrevistas":"interview availability","expectativa de rate":"rate expectation",
+ "respuesta a las preguntas del rol":"answers to the role questions",
+ "No pudimos enviar tu postulación: ":"We couldn't submit your application: ",
+ ". Probá de nuevo o escribinos a info@fact-iq.com.":". Please try again or write to info@fact-iq.com."
+};
+let LANG = localStorage.getItem("factiq_lang")
+  || ((navigator.language||"es").toLowerCase().startsWith("en") ? "en" : "es");
+
+const t = s => LANG === "en" ? (EN[s] ?? s) : s;
+
+function aplicarIdioma(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("#idioma .bl").forEach(b =>
+    b.setAttribute("aria-current", b.dataset.lang === LANG));
+  // textos estaticos: se guarda el original la primera vez
+  document.querySelectorAll("h1,h2,h3,label,.lead,.hint,.det,.nota,.leyenda,.btn,span,b")
+    .forEach(el => {
+      if (el.children.length) return;
+      if (!el.dataset.es) el.dataset.es = el.textContent.trim();
+      const base = el.dataset.es;
+      if (base && (EN[base] || LANG === "es")) el.textContent = t(base);
+    });
+  document.querySelectorAll("[placeholder]").forEach(el => {
+    if (!el.dataset.esPh) el.dataset.esPh = el.getAttribute("placeholder");
+    const base = el.dataset.esPh;
+    if (base && (EN[base] || LANG === "es")) el.setAttribute("placeholder", t(base));
+  });
+}
+
+document.getElementById("idioma").addEventListener("click", e => {
+  const b = e.target.closest("button[data-lang]"); if (!b) return;
+  LANG = b.dataset.lang;
+  localStorage.setItem("factiq_lang", LANG);
+  aplicarIdioma();
+});
+
 /* ---------- carga inicial ---------- */
 async function arrancar(){
   if (CODE){
@@ -216,8 +308,8 @@ async function arrancar(){
   if (BID){
     SKILLS = (BID.skills || []).slice(0, 18);
     $("#puesto").innerHTML = `
-      <h2>${esc(BID.titulo || "Búsqueda abierta")}</h2>
-      <div class="det">${BID.seniority ? esc(BID.seniority)+" · " : ""}${BID.duracion ? esc(BID.duracion)+" meses · " : ""}remoto</div>
+      <h2>${esc(BID.titulo || t("Búsqueda abierta"))}</h2>
+      <div class="det">${BID.seniority ? esc(BID.seniority)+" · " : ""}${BID.duracion ? esc(BID.duracion)+" "+t("meses")+" · " : ""}${t("remoto")}</div>
       ${SKILLS.length ? `<div class="skills">${SKILLS.map(s=>`<span class="sk">${esc(s)}</span>`).join("")}</div>` : ""}`;
     const preg = BID.preguntas || [];
     if (preg.length){
@@ -227,10 +319,11 @@ async function arrancar(){
           <textarea id="p${i}" data-preg="${esc(q)}"></textarea></div>`).join("");
     }
   } else {
-    $("#puesto").innerHTML = `<h2>Postulación espontánea</h2>
-      <div class="det">Guardamos tu perfil para las búsquedas que abramos.</div>`;
+    $("#puesto").innerHTML = `<h2>${t("Postulación espontánea")}</h2>
+      <div class="det">${t("Guardamos tu perfil para las búsquedas que abramos.")}</div>`;
   }
   pintarSkills();
+  aplicarIdioma();
 }
 
 /* ---------- CV: subir y leer ---------- */
@@ -239,14 +332,14 @@ async function subirCV(f){
   drop.classList.remove("mal","listo");
   if (!f) return;
   const ok = /\.(pdf|docx?)$/i.test(f.name);
-  if (!ok){ est.className = "estadoCV bad"; est.textContent = "Solo aceptamos PDF o Word."; drop.classList.add("mal"); return; }
-  if (f.size > 10*1024*1024){ est.className = "estadoCV bad"; est.textContent = "El archivo pesa más de 10 MB."; drop.classList.add("mal"); return; }
+  if (!ok){ est.className = "estadoCV bad"; est.textContent = t("Solo aceptamos PDF o Word."); drop.classList.add("mal"); return; }
+  if (f.size > 10*1024*1024){ est.className = "estadoCV bad"; est.textContent = t("El archivo pesa más de 10 MB."); drop.classList.add("mal"); return; }
 
   SUBIENDO = true; CV_PATH = null;
   $("#dropTit").textContent = f.name;
   $("#dropSub").textContent = "";
   est.className = "estadoCV";
-  est.innerHTML = `<span class="spin"></span>Leyendo tu CV... tarda unos segundos`;
+  est.innerHTML = `<span class="spin"></span>${t("Leyendo tu CV... tarda unos segundos")}`;
 
   try{
     const fd = new FormData();
@@ -256,14 +349,14 @@ async function subirCV(f){
     if (!r.ok || j.error) throw new Error(j.detalle || j.error || "no se pudo subir");
     CV_PATH = j.cv_path;
     drop.classList.add("listo");
-    $("#dropSub").textContent = "Tocá para cambiarlo";
+    $("#dropSub").textContent = t("Tocá para cambiarlo");
     autocompletar(j.datos);
   }catch(e){
     est.className = "estadoCV bad";
-    est.textContent = "No pudimos subir tu CV: " + e.message + ". Probá de nuevo.";
+    est.textContent = t("No pudimos subir tu CV: ") + e.message + t(". Probá de nuevo.");
     drop.classList.add("mal");
-    $("#dropTit").textContent = "Arrastrá tu CV acá o tocá para elegirlo";
-    $("#dropSub").textContent = "PDF o Word, hasta 10 MB";
+    $("#dropTit").textContent = t("Arrastrá tu CV acá o tocá para elegirlo");
+    $("#dropSub").textContent = t("PDF o Word, hasta 10 MB");
   }finally{
     SUBIENDO = false;
     $("#resto").style.display = "block";
@@ -274,7 +367,7 @@ function autocompletar(d){
   const est = $("#estadoCV");
   if (!d){
     est.className = "estadoCV ok";
-    est.textContent = "CV cargado. No pudimos leer los datos automáticamente, completalos abajo.";
+    est.textContent = t("CV cargado. No pudimos leer los datos automáticamente, completalos abajo.");
     return;
   }
   let n = 0;
@@ -302,7 +395,10 @@ function autocompletar(d){
   pintarSkills();
 
   est.className = "estadoCV ok";
-  est.textContent = n ? `CV cargado. Completamos ${n} datos a partir de tu CV.` : "CV cargado.";
+  est.textContent = n
+    ? (LANG === "en" ? `Resume uploaded. We filled in ${n} fields from it.`
+                     : `CV cargado. Completamos ${n} datos a partir de tu CV.`)
+    : t("CV cargado.");
   if (n) $("#leyenda").style.display = "block";
 }
 
@@ -363,10 +459,10 @@ $("#form").addEventListener("submit", async e=>{
   e.preventDefault();
   $("#err").textContent = "";
 
-  if (SUBIENDO){ $("#err").textContent = "Esperá a que termine de cargar tu CV."; return; }
+  if (SUBIENDO){ $("#err").textContent = t("Esperá a que termine de cargar tu CV."); return; }
   if (!CV_PATH){
     $("#drop").classList.add("mal");
-    $("#err").textContent = "Necesitamos tu CV para postularte.";
+    $("#err").textContent = t("Necesitamos tu CV para postularte.");
     $("#drop").scrollIntoView({behavior:"smooth", block:"center"});
     return;
   }
@@ -385,17 +481,17 @@ $("#form").addEventListener("submit", async e=>{
     if (vacio && !primero) primero = [sel,nom];
   });
   if (primero){
-    $("#err").textContent = `Nos falta: ${primero[1]}.`;
+    $("#err").textContent = `${t("Nos falta: ")}${t(primero[1])}.`;
     $(primero[0]).focus();
     $(primero[0]).scrollIntoView({behavior:"smooth", block:"center"});
     return;
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($("#email").value.trim())){
-    $("#email").classList.add("mal"); $("#err").textContent = "Revisá el correo, no parece válido."; return;
+    $("#email").classList.add("mal"); $("#err").textContent = t("Revisá el correo, no parece válido."); return;
   }
 
   const btn = $("#btnEnviar");
-  btn.disabled = true; btn.textContent = "Enviando...";
+  btn.disabled = true; btn.textContent = t("Enviando...");
   try{
     const respuestas = {};
     document.querySelectorAll("[data-preg]").forEach(t=>{ respuestas[t.dataset.preg] = t.value.trim(); });
@@ -417,10 +513,11 @@ $("#form").addEventListener("submit", async e=>{
     if (error) throw new Error(error.message);
     $("#form").style.display = "none";
     $("#gracias").style.display = "block";
+    aplicarIdioma();
     window.scrollTo({top:0, behavior:"smooth"});
   }catch(err){
-    $("#err").textContent = "No pudimos enviar tu postulación: " + err.message + ". Probá de nuevo o escribinos a info@fact-iq.com.";
-    btn.disabled = false; btn.textContent = "Enviar mi postulación";
+    $("#err").textContent = t("No pudimos enviar tu postulación: ") + err.message + t(". Probá de nuevo o escribinos a info@fact-iq.com.");
+    btn.disabled = false; btn.textContent = t("Enviar mi postulación");
   }
 });
 
