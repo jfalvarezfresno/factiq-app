@@ -174,7 +174,10 @@ textarea{min-height:76px;resize:vertical}
         <h3>Requisitos físicos</h3>
         <div class="hint" style="margin:-8px 0 10px">El puesto es en un depósito y exige
           actividad física. Revisá la lista y confirmá si podés cumplirla.</div>
-        <ul id="listaFisico" style="margin:0 0 12px;padding-left:20px;font-size:13.5px;color:var(--ink-2)"></ul>
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:13.5px;color:var(--navy-2)" id="verFisico">Ver la lista completa</summary>
+          <ul id="listaFisico" style="margin:8px 0 0;padding-left:20px;font-size:13.5px;color:var(--ink-2)"></ul>
+        </details>
         <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400">
           <input type="checkbox" id="fisicoOk" style="width:auto;margin-top:3px">
           <span id="fisicoTxt">Confirmo que puedo cumplir con todos estos requisitos.</span>
@@ -244,6 +247,7 @@ const EN = {
  "Argentina, México, Colombia...":"United States, Mexico, Argentina...",
  "5 · Condiciones del puesto":"5 · Role conditions",
  "Requisitos físicos":"Physical requirements",
+ "Ver la lista completa":"See the full list",
  "Preguntas sobre el rol":"Questions about the role",
  "Para cada punto, poné los años y contá brevemente qué hiciste. Es lo que el cliente evalúa.":"For each item, enter the years and briefly describe what you did. This is what the client evaluates.",
  "El puesto es en un depósito y exige actividad física. Revisá la lista y confirmá si podés cumplirla.":"This role is inside a warehouse and requires physical activity. Review the list and confirm whether you can meet it.",
@@ -487,6 +491,9 @@ function pintarMatriz(){
 
   if (tec.length){
     $("#cardMatriz").style.display = "block";
+    $("#cardPreguntas").style.display = "none";
+    const bloqueSkills = $("#misSkills")?.closest(".field");
+    if (bloqueSkills) bloqueSkills.style.display = "none";
     $("#matrizTecnica").innerHTML = tec.map((p,i)=>{
       const a = document.getElementById("mt_a"+i)?.value || "";
       const d = document.getElementById("mt_d"+i)?.value || "";
@@ -532,6 +539,10 @@ function pintarMatriz(){
 // siempre bajo la pregunta en español, para que no cambie la clave.
 function pintarPreguntas(){
   if (!BID) return;
+  // la matriz ya cubre lo tecnico: no repreguntamos lo mismo
+  if (MATRIZ.some(p => p.bloque === "TECNICA")){
+    $("#cardPreguntas").style.display = "none"; return;
+  }
   const es = BID.preguntas || [];
   const en = BID.preguntas_en || [];
   if (!es.length && !en.length) return;
