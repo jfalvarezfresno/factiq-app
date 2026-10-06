@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- version: 2026-09-22 02:10 -->
+<!-- version: 2026-10-05 18:30 -->
 <meta charset="utf-8">
 <!-- This site is hosted on Netlify. Anyone can build and deploy a site
      like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
@@ -184,6 +184,7 @@ tbody tr:hover{background:var(--surface-2)}
 }
 .modal .card{max-width:620px;width:100%;max-height:86vh;overflow:auto}
 .modal textarea{min-height:230px}
+#modal .card:has(#modalCuerpo) textarea{min-height:320px}
 .modalfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
 .vacio{color:var(--muted);padding:30px 4px;text-align:center}
@@ -781,6 +782,18 @@ Datos que faltan en el Job Description: ${faltan.join(", ")}.`;
 
 const URL_FORM = "https://factiq-app.pages.dev/postularse.html";
 
+// El modelo devuelve las dos versiones. Se muestran juntas para elegir cual publicar.
+function armarPostBilingue(d, link){
+  const limpiar = t => (t||"").replace(/\{LINK\}/g, link);
+  const es = limpiar(d.post_es || d.post || "");
+  const en = limpiar(d.post_en || "");
+  const conLink = t => t && !t.includes(link) ? `${t}\n\nPostulate acá: ${link}` : t;
+  const partes = [];
+  if (es) partes.push(`━━━━━━━━━━  ESPAÑOL  ━━━━━━━━━━\n\n${conLink(es)}`);
+  if (en) partes.push(`━━━━━━━━━━  ENGLISH  ━━━━━━━━━━\n\n${en.includes(link) ? en : `${en}\n\nApply here: ${link}`}`);
+  return partes.join("\n\n\n");
+}
+
 async function generarPost(){
   // guardar la busqueda: el formulario necesita el codigo para saber que preguntar
   let code = null;
@@ -805,8 +818,7 @@ Link de postulacion: ${link}`;
   abrirModal("Publicación de LinkedIn", null, "Redactando...", "");
   try{
     const d = await llamarIA("post", ctx);
-    $("#modalCuerpo").value = (d.post || "").replace("{LINK}", link)
-      + (String(d.post||"").includes(link) ? "" : `\n\nPostulate acá: ${link}`);
+    $("#modalCuerpo").value = armarPostBilingue(d, link);
     if (code) $("#modalErr").innerHTML =
       `<span style="color:var(--verde-fg)">Búsqueda guardada como <b>${code}</b>. El formulario ya muestra estos skills y preguntas.</span>`;
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
@@ -896,7 +908,7 @@ async function cvAnonimoHtmlViejo(analystId, bidCode){
     </div>`).join("");
 
   const html = `<!DOCTYPE html><html lang="en"><head>
-<!-- version: 2026-09-22 02:10 --><meta charset="utf-8">
+<!-- version: 2026-10-05 18:30 --><meta charset="utf-8">
 <title>${esc(cv.titulo||"CV")}</title>
 <style>
 *{box-sizing:border-box}
@@ -959,7 +971,7 @@ async function cvAnonimoViejo(analystId, bidCode){
 
   const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
   const html = `<!DOCTYPE html><html lang="es"><head>
-<!-- version: 2026-09-22 02:10 --><meta charset="utf-8">
+<!-- version: 2026-10-05 18:30 --><meta charset="utf-8">
 <title>${esc(anonimo(a.full_name))} · FactIQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -1343,8 +1355,7 @@ Zona horaria: ${pr.zona_horaria||"LATAM"}.\nSkills: ${pr.skills}.\nLink de postu
   abrirModal("Publicación de LinkedIn · " + codigo, null, "Redactando...", "");
   try{
     const d = await llamarIA("post", ctx);
-    const txt = (d.post||"").replace("{LINK}", link);
-    $("#modalCuerpo").value = txt.includes(link) ? txt : `${txt}\n\nPostulate acá: ${link}`;
+    $("#modalCuerpo").value = armarPostBilingue(d, link);
   }catch(e){ $("#modalErr").textContent = "No se pudo redactar: " + e.message; }
 }
 
