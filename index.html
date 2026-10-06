@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- version: 2026-10-05 18:30 -->
+<!-- version: 2026-10-06 01:30 -->
 <meta charset="utf-8">
 <!-- This site is hosted on Netlify. Anyone can build and deploy a site
      like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
@@ -291,6 +291,12 @@ tbody tr:hover{background:var(--surface-2)}
                 <div class="field" style="margin:0"><label>Nombre del proyecto</label>
                   <input id="pr_nombre" type="text"></div>
               </div>
+              <div class="field" style="margin:10px 0 0">
+                <label>Matriz de skills de 4Latam <span style="color:var(--warn)">obligatoria</span></label>
+                <input id="pr_matriz" type="file" accept=".xlsx,.xlsm,.xls">
+                <div class="hint" style="font-size:12px;color:var(--muted);margin-top:3px">
+                  El Excel que te mandaron. De ahí salen las preguntas que va a responder el candidato.</div>
+              </div>
               <button class="btn sm" id="btnCrearProyecto" style="margin-top:10px">Crear proyecto</button>
               <span id="prEstado" class="cov" style="margin-left:8px"></span>
             </div>
@@ -563,10 +569,30 @@ async function sugerirProyecto(){
   if (!$("#pr_nombre").value) $("#pr_nombre").value = $("#f_titulo").value || "";
 }
 
+// Sube la matriz y deja guardadas las preguntas que va a responder el candidato
+async function subirMatriz(codigo, archivo){
+  const { data: ses } = await sb.auth.getSession();
+  const fd = new FormData();
+  fd.append("matriz", archivo); fd.append("bid", codigo);
+  const r = await fetch(`${SUPA_URL}/functions/v1/leer-matriz`, {
+    method:"POST",
+    headers:{ "Authorization":`Bearer ${ses.session.access_token}` },
+    body: fd
+  });
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error(j.detalle || j.error || "no se pudo leer la matriz");
+  return j;
+}
+
 async function crearProyecto(){
   const codigo = $("#pr_codigo").value.trim().toUpperCase();
   const nombre = $("#pr_nombre").value.trim();
+  const archivo = $("#pr_matriz").files[0];
   if (!nombre){ $("#prEstado").textContent = "Poné un nombre."; return; }
+  if (!archivo){
+    $("#prEstado").innerHTML = `<span style="color:var(--warn)">Falta la matriz de skills.</span>`;
+    $("#pr_matriz").focus(); return;
+  }
   $("#btnCrearProyecto").disabled = true;
   try{
     const { data, error } = await sb.rpc("crear_proyecto", { p: {
@@ -582,7 +608,16 @@ async function crearProyecto(){
     if (error) throw new Error(error.message);
     PROYECTO = data.codigo;
     $("#pr_codigo").value = data.codigo;
-    $("#prEstado").innerHTML = `<span style="color:var(--verde-fg)">Proyecto ${esc(data.codigo)} creado</span>`;
+    $("#prEstado").innerHTML = `<span class="spin"></span> Leyendo la matriz...`;
+    try{
+      const m = await subirMatriz(data.codigo, archivo);
+      const b = m.por_bloque || {};
+      $("#prEstado").innerHTML = `<span style="color:var(--verde-fg)">Proyecto ${esc(data.codigo)} creado · `
+        + `matriz con ${m.total} preguntas (${Object.entries(b).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(", ")})</span>`;
+    }catch(e){
+      $("#prEstado").innerHTML = `<span style="color:var(--warn)">Proyecto ${esc(data.codigo)} creado, `
+        + `pero la matriz falló: ${esc(e.message)}. Subila de nuevo desde Postulaciones.</span>`;
+    }
     $("#btnCrearProyecto").textContent = "Proyecto creado";
     pintarCandidatos();
   }catch(e){
@@ -909,7 +944,7 @@ async function cvAnonimoHtmlViejo(analystId, bidCode){
     </div>`).join("");
 
   const html = `<!DOCTYPE html><html lang="en"><head>
-<!-- version: 2026-10-05 18:30 --><meta charset="utf-8">
+<!-- version: 2026-10-06 01:30 --><meta charset="utf-8">
 <title>${esc(cv.titulo||"CV")}</title>
 <style>
 *{box-sizing:border-box}
@@ -972,7 +1007,7 @@ async function cvAnonimoViejo(analystId, bidCode){
 
   const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
   const html = `<!DOCTYPE html><html lang="es"><head>
-<!-- version: 2026-10-05 18:30 --><meta charset="utf-8">
+<!-- version: 2026-10-06 01:30 --><meta charset="utf-8">
 <title>${esc(anonimo(a.full_name))} · FactIQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -1275,10 +1310,20 @@ async function cargarPostulaciones(){
           <button class="btn ghost sm" data-copiar="${esc(link)}">Copiar link</button>
           <button class="btn ghost sm" data-post="${esc(pr.codigo)}">Generar post LinkedIn</button>
           <button class="btn ${falt.length?"":"ghost"} sm" data-consulta="${esc(pr.codigo)}">Consultar a 4Latam</button>
+          <label class="btn ghost sm" style="cursor:pointer">
+            ${pr.matriz_preguntas ? "Reemplazar matriz" : "Subir matriz"}
+            <input type="file" accept=".xlsx,.xlsm,.xls" data-matriz="${esc(pr.codigo)}" style="display:none">
+          </label>
           ${ROL==="ADMIN"?`<button class="btn ghost sm" data-borrar="${esc(pr.codigo)}"
             style="color:var(--err,#B4531F);border-color:#E7C4B0;margin-left:auto">Eliminar proyecto</button>`:""}
         </div>
         ${falt.length?`<div class="aviso" style="margin-bottom:12px"><b>Sin confirmar en el JD:</b> ${esc(falt.join(", "))}</div>`:""}
+        <div class="meta" style="margin-bottom:10px">
+          <b>Matriz:</b> ${pr.matriz_preguntas
+            ? `${esc(pr.matriz_nombre||"cargada")} · ${pr.matriz_preguntas} preguntas`
+            : `<span style="color:var(--warn)">sin cargar — el formulario no va a medir la aptitud técnica</span>`}
+          <span id="mtz_${esc(pr.codigo)}" class="cov"></span>
+        </div>
         ${pr.skills?`<div class="meta" style="margin-bottom:12px"><b>Skills:</b> ${esc(pr.skills)}</div>`:""}
         ${ROL==="ADMIN"?`
         <div style="display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--rule)">
@@ -1388,6 +1433,21 @@ async function verCV(ruta, nombre){
   }
 }
 
+$("#listaProyectos").addEventListener("change", async e=>{
+  const inp = e.target.closest("input[data-matriz]");
+  if (!inp || !inp.files[0]) return;
+  const codigo = inp.dataset.matriz;
+  const aviso = $("#mtz_"+codigo);
+  if (aviso) aviso.innerHTML = `<span class="spin"></span> leyendo la matriz...`;
+  try{
+    const m = await subirMatriz(codigo, inp.files[0]);
+    if (aviso) aviso.innerHTML = `<span style="color:var(--verde-fg)"> · ${m.total} preguntas leídas</span>`;
+    setTimeout(cargarPostulaciones, 900);
+  }catch(err){
+    if (aviso) aviso.innerHTML = `<span style="color:var(--warn)"> · no se pudo: ${esc(err.message)}</span>`;
+  }
+});
+
 $("#listaProyectos").addEventListener("click", async e=>{
   // abrir / cerrar un proyecto
   const cab = e.target.closest("[data-proy]");
@@ -1400,6 +1460,7 @@ $("#listaProyectos").addEventListener("click", async e=>{
   if (sol){ PROY_SOLAPA = sol.dataset.solapa; cargarPostulaciones(); return; }
 
   const cop = e.target.closest("button[data-copiar]");
+  if (!cop && e.target.matches("input[data-matriz]")) return;
   if (cop){
     await navigator.clipboard.writeText(cop.dataset.copiar);
     cop.textContent = "Copiado"; setTimeout(()=>cop.textContent="Copiar link", 1400); return;
