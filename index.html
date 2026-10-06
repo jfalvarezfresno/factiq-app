@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- version: 2026-10-06 01:30 -->
+<!-- version: 2026-10-06 02:40 -->
 <meta charset="utf-8">
 <!-- This site is hosted on Netlify. Anyone can build and deploy a site
      like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=e12639b9-93c1-40bc-9290-f3821db26188
@@ -944,7 +944,7 @@ async function cvAnonimoHtmlViejo(analystId, bidCode){
     </div>`).join("");
 
   const html = `<!DOCTYPE html><html lang="en"><head>
-<!-- version: 2026-10-06 01:30 --><meta charset="utf-8">
+<!-- version: 2026-10-06 02:40 --><meta charset="utf-8">
 <title>${esc(cv.titulo||"CV")}</title>
 <style>
 *{box-sizing:border-box}
@@ -1007,7 +1007,7 @@ async function cvAnonimoViejo(analystId, bidCode){
 
   const chips = xs => xs.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
   const html = `<!DOCTYPE html><html lang="es"><head>
-<!-- version: 2026-10-06 01:30 --><meta charset="utf-8">
+<!-- version: 2026-10-06 02:40 --><meta charset="utf-8">
 <title>${esc(anonimo(a.full_name))} · FactIQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Lato:wght@400;700&family=Roboto+Mono:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -1127,6 +1127,7 @@ async function cargarPostulacionesViejo(){
             ? `<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
             : `<span class="sincontacto" style="align-self:center">sin CV adjunto</span>`}
           ${p.analyst_id?`<button class="btn ghost sm" data-cvanon="${esc(p.analyst_id)}" data-bid="${esc(p.bid_code||"")}">CV anonimizado</button>`:""}
+        ${p.tiene_matriz?`<button class="btn ghost sm" data-matrizdl="${esc(p.id)}" data-nom="${esc(p.nombre)}">Matriz completada</button>`:""}
           ${(ROL==="ADMIN" && p.analyst_id)?`<button class="btn sm" data-prop="${esc(p.id)}">Contactar con propuesta</button>`:""}
           <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Marcar revisada</button>
           <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
@@ -1136,6 +1137,89 @@ async function cargarPostulacionesViejo(){
     </div>`;
   }).join("");
   contarNuevas();
+}
+
+/* ============ matriz de skills ============ */
+// Comparativa: una fila por skill, una columna por candidato.
+async function tablaMatriz(codigo){
+  const [{data: tec}, {data: exc}] = await Promise.all([
+    sb.rpc("matriz_respuestas", { p_bid: codigo }),
+    sb.rpc("matriz_excluyentes", { p_bid: codigo })
+  ]);
+  if (!tec || !tec.length) return "";
+
+  const personas = [...new Set(tec.map(r => r.nombre))];
+  const skills   = [...new Set(tec.map(r => r.skill))];
+  const valor = {};
+  tec.forEach(r => { valor[r.nombre + "|" + r.skill] = r; });
+
+  const color = a => a === null || a === undefined ? "var(--muted)"
+    : a >= 5 ? "var(--verde-fg)" : a >= 3 ? "var(--ink)" : "var(--warn)";
+
+  const filas = skills.map(s => `
+    <tr><td style="font-weight:600">${esc(s)}</td>
+      ${personas.map(n => {
+        const r = valor[n + "|" + s];
+        return `<td class="tabular" style="text-align:center;color:${color(r?.anios)}"
+          title="${esc(r?.detalle || "")}">${r?.anios ?? "—"}</td>`;
+      }).join("")}
+    </tr>`).join("");
+
+  // excluyentes: un No descarta
+  const porPersona = {};
+  (exc || []).forEach(r => {
+    (porPersona[r.nombre] ??= []).push(r);
+  });
+  const filaExc = personas.some(n => porPersona[n]) ? `
+    <tr><td style="font-weight:600;border-top:2px solid var(--rule)">Condiciones</td>
+      ${personas.map(n => {
+        const rs = porPersona[n] || [];
+        const no = rs.filter(r => (r.valor||"").toLowerCase().startsWith("no"));
+        return `<td style="text-align:center;border-top:2px solid var(--rule)"
+          title="${esc(rs.map(r=>r.pregunta+": "+r.valor).join(" · "))}">
+          ${no.length ? `<span class="sincontacto">${no.length} no</span>`
+                      : `<span class="enviado">cumple</span>`}</td>`;
+      }).join("")}
+    </tr>` : "";
+
+  return `
+    <div style="overflow-x:auto;margin:12px 0">
+      <table style="min-width:420px">
+        <thead><tr><th>Skill</th>${personas.map(n=>`<th style="text-align:center">${esc(n)}</th>`).join("")}</tr></thead>
+        <tbody>${filas}${filaExc}</tbody>
+      </table>
+      <div class="meta" style="margin-top:6px">Años declarados por cada candidato.
+        Pasá el mouse sobre un número para ver qué contó.</div>
+    </div>`;
+}
+
+// Descarga la matriz completada para adjuntar a 4Latam
+async function descargarMatriz(postId, nombre, boton){
+  const txt0 = boton.textContent;
+  boton.disabled = true; boton.textContent = "Armando la matriz...";
+  try{
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SUPA_URL}/functions/v1/llenar-matriz`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${ses.session.access_token}` },
+      body: JSON.stringify({ postulacion_id: postId, anonimo: true })
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.detalle || j.error);
+    const bin = atob(j.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = j.archivo;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    boton.textContent = "Matriz descargada";
+    setTimeout(()=>{ boton.textContent = txt0; boton.disabled = false; }, 2500);
+  }catch(e){
+    alert("No se pudo armar la matriz: " + e.message);
+    boton.textContent = txt0; boton.disabled = false;
+  }
 }
 
 /* ============ proyectos ============ */
@@ -1174,6 +1258,7 @@ function fichaPostulacion(p){
         ${p.cv_path?`<button class="btn ghost sm" data-cv="${esc(p.cv_path)}" data-nom="${esc(p.nombre)}">Ver CV</button>`
                    :`<span class="sincontacto" style="align-self:center">sin CV</span>`}
         ${p.analyst_id?`<button class="btn ghost sm" data-cvanon="${esc(p.analyst_id)}" data-bid="${esc(p.bid_code||"")}">CV anonimizado</button>`:""}
+        ${p.tiene_matriz?`<button class="btn ghost sm" data-matrizdl="${esc(p.id)}" data-nom="${esc(p.nombre)}">Matriz completada</button>`:""}
         ${p.analyst_id ? botonesContacto(p) : ""}
         <button class="btn ghost sm" data-est="REVISADA" data-pid="${esc(p.id)}">Revisada</button>
         <button class="btn ghost sm" data-est="DESCARTADA" data-pid="${esc(p.id)}">Descartar</button>
@@ -1334,6 +1419,7 @@ async function cargarPostulaciones(){
             font-weight:700;border-bottom:2px solid ${PROY_SOLAPA==="env"?"var(--navy)":"transparent"};
             color:${PROY_SOLAPA==="env"?"var(--ink)":"var(--muted)"}">Enviados a 4Latam (${es.length})</button>
         </div>`:""}
+        <div id="comp_${esc(pr.codigo)}"></div>
         ${(ROL!=="ADMIN" || PROY_SOLAPA==="post")
           ? (ps.length ? ps.map(fichaPostulacion).join("") : `<div class="vacio">Todavía no hay postulantes para este proyecto.</div>`)
           : (es.length ? es.map(fichaEnvio).join("") : `<div class="vacio">Todavía no enviaste perfiles de este proyecto. Hacelo desde "Contactar con propuesta".</div>`)}
@@ -1512,6 +1598,9 @@ $("#listaProyectos").addEventListener("click", async e=>{
   if (bCv){ verCV(bCv.dataset.cv, bCv.dataset.nom || ""); return; }
   const bAnon = e.target.closest("button[data-cvanon]");
   if (bAnon){ cvAnonimo(bAnon.dataset.cvanon, bAnon.dataset.bid); return; }
+
+  const bMtz = e.target.closest("button[data-matrizdl]");
+  if (bMtz){ descargarMatriz(bMtz.dataset.matrizdl, bMtz.dataset.nom, bMtz); return; }
 
   const bProp = e.target.closest("button[data-prop]");
   if (bProp){ abrirPropuesta(bProp.dataset.prop); return; }
