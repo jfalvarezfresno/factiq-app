@@ -180,3 +180,20 @@ Todas usan el modelo `claude-haiku-4-5-20251001`. Costo aproximado: 1 centavo po
   postulación pida, para cada tecnología requerida por el JD, los años de experiencia del
   candidato, en vez de solo tildarla.
 - **Conectar este flujo con el sistema de postulación de Ale.**
+
+## 11. Matriz de skills
+
+4Latam manda un Excel por búsqueda con la evaluación técnica que hay que completar por candidato.
+
+- Se sube al crear el proyecto (obligatoria) o después, desde el proyecto en Postulaciones.
+- El lector identifica cuatro bloques (técnico, excluyentes, físicos, rate) y **en qué celda va
+  cada respuesta**. Regla crítica: la celda de respuesta es siempre una celda VACÍA; nunca la
+  que contiene el enunciado del cliente. Hay una verificación automática que lo corrige.
+- El formulario reemplaza las preguntas sueltas del JD por los ítems de la matriz.
+  Los requisitos físicos se agrupan en una sola confirmación.
+- Al postular se genera el Excel completado **conservando el archivo original**: se abre como
+  paquete y se escribe solo dentro de las celdas, sin regenerarlo, así no se pierden estilos.
+- Las filas de responsabilidades del perfil las estima el sistema a partir de lo que declaró
+  el candidato, de forma conservadora, para que el equipo las revise.
+- Los años por tecnología que declara el candidato se guardan también en su ficha de analista.
+- El borrador a 4Latam sale con **dos adjuntos**: el CV anonimizado y la matriz completada.
