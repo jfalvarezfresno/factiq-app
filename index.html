@@ -1660,21 +1660,50 @@ async function tokenOutlook(){
   catch(_){ FORZAR_POPUP = true; throw new Error("NECESITA_CLIC"); }
 }
 
-async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
+async function crearBorradorConCV(asunto, cuerpo, analystId, postId, boton){
   const txt0 = boton.textContent;
   boton.disabled = true;
+  const adjuntos = [];
+  const avisos = [];
   try{
     boton.textContent = "Conectando con Outlook...";
     const token = await tokenOutlook();   // primero, pegado al clic
-    boton.textContent = "Armando el CV anonimizado...";
     const { data: ses } = await sb.auth.getSession();
+    const cab = { "Content-Type":"application/json",
+                  "Authorization":`Bearer ${ses.session.access_token}` };
+
+    boton.textContent = "Armando el CV anonimizado...";
     const r = await fetch(`${SUPA_URL}/functions/v1/cv-word`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${ses.session.access_token}` },
-      body: JSON.stringify({ analyst_id: analystId })
+      method:"POST", headers: cab, body: JSON.stringify({ analyst_id: analystId })
     });
     const cv = await r.json();
     if (!r.ok || cv.error) throw new Error("no se pudo armar el CV: " + (cv.detalle || cv.error));
+    adjuntos.push({
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: cv.archivo || "CV.docx",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      contentBytes: cv.base64
+    });
+
+    // matriz completada: si el candidato no la respondio, el borrador sale igual
+    boton.textContent = "Armando la matriz...";
+    try{
+      const rm = await fetch(`${SUPA_URL}/functions/v1/llenar-matriz`, {
+        method:"POST", headers: cab,
+        body: JSON.stringify({ postulacion_id: postId, anonimo: true })
+      });
+      const mz = await rm.json();
+      if (rm.ok && mz.base64){
+        adjuntos.push({
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: mz.archivo || "Matrix.xlsx",
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          contentBytes: mz.base64
+        });
+      } else {
+        avisos.push("sin matriz (" + (mz.error || "no disponible") + ")");
+      }
+    }catch(_){ avisos.push("sin matriz"); }
 
     boton.textContent = "Creando el borrador...";
     const lista = s => s.split(",").map(a => a.trim()).filter(Boolean)
@@ -1687,18 +1716,14 @@ async function crearBorradorConCV(asunto, cuerpo, analystId, boton){
         body: { contentType: "Text", content: cuerpo },
         toRecipients: lista(MAIL_4LATAM),
         ccRecipients: lista(MAIL_CC),
-        attachments: [{
-          "@odata.type": "#microsoft.graph.fileAttachment",
-          name: cv.archivo || "CV.docx",
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          contentBytes: cv.base64
-        }]
+        attachments: adjuntos
       })
     });
     const msg = await g.json();
     if (!g.ok) throw new Error(msg?.error?.message || "Outlook rechazó el borrador");
 
-    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Borrador creado en tu Outlook con ${esc(cv.archivo)} adjunto.</span>
+    $("#modalErr").innerHTML = `<span style="color:var(--verde-fg)">Borrador creado con ${adjuntos.length} adjunto${adjuntos.length>1?"s":""}: ${esc(adjuntos.map(a=>a.name).join(" · "))}.</span>
+      ${avisos.length?`<span style="color:var(--warn)"> ${esc(avisos.join(", "))}</span>`:""}
       <a class="btn sm" href="${esc(msg.webLink)}" target="_blank" rel="noopener"
          style="display:inline-flex;margin-left:8px">Abrir borrador en Outlook</a>`;
   }catch(e){
@@ -1949,7 +1974,7 @@ Adjuntamos el CV del perfil. Quedamos atentos para coordinar la entrevista.
 
 Saludos,
 El equipo de FactIQ`;
-    if (conCV){ crearBorradorConCV(asunto, cuerpo, PROP.p.analyst_id, e.target); return; }
+    if (conCV){ crearBorradorConCV(asunto, cuerpo, PROP.p.analyst_id, PROP.p.id, e.target); return; }
     const url = "https://outlook.office.com/mail/deeplink/compose"
       + `?to=${encodeURIComponent(MAIL_4LATAM)}`
       + `&cc=${encodeURIComponent(MAIL_CC)}`
